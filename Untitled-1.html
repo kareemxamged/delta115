@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>مشروع التخرج - نظام إدارة الامتحانات</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+        
+        body {
+            font-family: 'Cairo', sans-serif;
+            color: #0f172a;
+            line-height: 1.8;
+            margin: 0;
+            padding: 0;
+            background-color: #f1f5f9;
+        }
+        
+        /* إعدادات العرض على الشاشة */
+        .page {
+            background-color: white;
+            width: 210mm;
+            min-height: 297mm;
+            margin: 20px auto;
+            padding: 25mm;
+            box-sizing: border-box;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+            /* تم إزالة overflow: hidden من هنا */
+        }
+
+        /* تنسيق صفحة الغلاف */
+        .cover-page {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            text-align: center;
+            border: 3px solid #1e3a8a;
+            padding: 40px;
+            /* للتأكد من أن الغلاف يأخذ صفحة كاملة دائماً */
+            height: 297mm; 
+            box-sizing: border-box;
+        }
+        
+        .cover-header h3 { margin: 5px 0; color: #334155; font-size: 20px; }
+        .cover-title { margin: auto 0; }
+        .cover-title h1 { color: #1e3a8a; font-size: 38px; font-weight: 900; margin-bottom: 10px; }
+        .cover-title h2 { color: #64748b; font-size: 26px; font-weight: 700; }
+        
+        .cover-footer {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            margin-top: 50px;
+            font-size: 18px;
+            font-weight: 700;
+            text-align: right;
+        }
+
+        /* تنسيق العناوين والمحتوى الداخلي */
+        h1.chapter-title {
+            color: #1e3a8a;
+            border-bottom: 3px solid #1e3a8a;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 30px;
+            text-align: center;
+        }
+        
+        /* تجميع الأقسام لمنع كسرها بين الصفحات أثناء الطباعة */
+        .section-block {
+            page-break-inside: avoid;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            color: #2563eb;
+            font-size: 24px;
+            margin-top: 35px;
+            margin-bottom: 15px;
+            border-right: 4px solid #2563eb;
+            padding-right: 10px;
+        }
+        
+        h3 { color: #334155; font-size: 20px; margin-top: 25px; }
+        p { text-align: justify; font-size: 17px; margin-bottom: 15px; color: #334155; }
+        ul, ol { margin-bottom: 20px; padding-right: 25px; }
+        li { font-size: 17px; margin-bottom: 10px; color: #334155; text-align: justify; }
+        .highlight { font-weight: 700; color: #1e3a8a; }
+
+        /* تنسيق الفهرس */
+        .toc-list { list-style-type: none; padding: 0; }
+        .toc-list > li { font-size: 20px; font-weight: bold; color: #1e3a8a; margin-top: 20px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 5px; }
+        .toc-list ul { list-style-type: none; padding-right: 20px; margin-top: 10px; }
+        .toc-list ul li { font-size: 18px; font-weight: normal; color: #334155; border-bottom: none; margin-bottom: 8px; }
+        .toc-list ul li::before { content: "• "; color: #2563eb; }
+
+        /* تنسيق قائمة الفريق لعمود واحد لتناسب الأسماء الطويلة */
+        .team-grid ol {
+            display: grid;
+            grid-template-columns: 1fr;
+            row-gap: 8px;
+            padding-right: 35px;
+            margin: 0 auto;
+            max-width: 90%;
+        }
+        
+        .team-grid li { font-size: 16px; font-weight: 600; padding: 5px 10px; border-bottom: 1px solid #e2e8f0; margin-bottom: 0; }
+
+        /* ========================================================= */
+        /* إعدادات الطباعة للـ PDF (الحل النهائي) */
+        /* ========================================================= */
+        @media print {
+            @page {
+                size: A4; 
+                margin: 20mm; /* السماح بهوامش قياسية للطباعة */
+            }
+            
+            body { 
+                background-color: white; 
+            }
+            
+            .page { 
+                margin: 0 !important; 
+                box-shadow: none !important; 
+                padding: 0 !important; /* إزالة البادينج لأننا وضعناه في الـ @page */
+                width: auto !important; /* السماح للمتصفح بالتحكم في العرض */
+                height: auto !important; /* السماح للمتصفح بمد المحتوى للصفحة التالية */
+                min-height: 0 !important;
+                /* نقوم بإزالة page-break-after: always; من .page ونعتمد على المحتوى لكسر الصفحة */
+                page-break-after: auto; 
+            }
+            
+            .cover-page { 
+                border: 4px solid #1e3a8a !important; 
+                page-break-after: always !important; /* إجبار كسر الصفحة بعد الغلاف فقط */
+                height: 257mm !important; /* طول الورقة ناقص الهوامش */
+                padding: 20px !important;
+            }
+
+            /* إجبار كسر الصفحة قبل عناوين الفصول لتنظيمها */
+            h1.chapter-title {
+                page-break-before: always;
+                margin-top: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page cover-page">
+        <div class="cover-header">
+            <h3>وزارة التعليم العالي</h3>
+            <h3>معهد الدلتا العالي للحاسبات ونظم المعلومات الإدارية - المنصورة</h3>
+            <h3>قسم نظم المعلومات الإدارية</h3>
+        </div>
+        
+        <div class="cover-title">
+            <h3>مشروع التخرج</h3>
+            <h1>نظام إدارة الامتحانات والنتائج</h1>
+            <h2>(Exam Management System)</h2>
+        </div>
+        
+        <div class="cover-footer">
+            <div style="width: 65%;">
+                <p style="color: #64748b; font-size: 16px;">إعداد فريق العمل:</p>
+                <p>رقم المشروع: 115</p>
+                <p style="font-size: 14px; font-weight: normal; color: #64748b;">(مرفق كشف بأسماء أعضاء الفريق)</p>
+            </div>
+            <div style="width: 35%;">
+                <p style="color: #64748b; font-size: 16px;">تحت إشراف:</p>
+                <p>د/ إبراهيم الحسنوني</p>
+                <p>م.م/ محمد السلاموني</p>
+                <p style="text-align: right; margin-top: 15px; font-size: 16px;">العام الجامعي 2025 - 2026</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="page">
+        <h1 class="chapter-title">أعضاء فريق العمل</h1>
+        <p style="text-align: center; margin-bottom: 30px; font-size: 18px; color: #64748b;">
+            تم إنجاز هذا المشروع بواسطة الفريق رقم (115) المكون من الطلاب الآتية أسماؤهم:
+        </p>
+        <div class="team-grid">
+            <ol>
+                <li>كريم أمجد عبدالهادي محمد زريع – 2202862</li>
+                <li>إبراهيم رضا عيد حسن شعبان – 2202956</li>
+                <li>إبراهيم محمود إبراهيم محمود السيد أحمد – 2201169</li>
+                <li>أحمد سامي أحمد ابراهيم عبده – 2201143</li>
+                <li>أحمد محمد عبدالهادي أحمد النجدي – 2202950</li>
+                <li>أيمن ممدوح محمد أمين – 2201147</li>
+                <li>أيمن هشام محمد سالم الحسيني – 2201162</li>
+                <li>شريف عطا صالح عطا نور – 2201166</li>
+                <li>عادل خالد السيد الشافعي أبو المعاطي – 2202951</li>
+                <li>عبدالله محمد علي محمد معروف – 2201071</li>
+                <li>محمد حمدي أحمد محمد السعيد – 2202863</li>
+                <li>محمد عبدالهادي عبدالستار حمزة – 2201036</li>
+                <li>مصطفى مسعد محمد الشعنه – 2201020</li>
+                <li>يوسف محمد سيد مصطفى – 2201160</li>
+                <li>يوسف محمد عبدالعال عبدالرازق – 2201074</li>
+                <li>أحمد سلامه جمعه يوسف عبدالرزاق – 2201165</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="page">
+        <h1 class="chapter-title">الفهرس</h1>
+        <ul class="toc-list">
+            <li>الفصل الأول: مقدمة المشروع وأهدافه
+                <ul>
+                    <li>1. مقدمة عامة</li>
+                    <li>2. مشكلة البحث</li>
+                    <li>3. أهداف المشروع</li>
+                    <li>4. نطاق عمل النظام (System Scope)</li>
+                </ul>
+            </li>
+            <li>الفصل الثاني: متطلبات النظام والتقنيات المستخدمة
+                <ul>
+                    <li>1. المتطلبات الوظيفية</li>
+                    <li>2. المتطلبات غير الوظيفية</li>
+                    <li>3. التقنيات والبيئة البرمجية المستخدمة</li>
+                </ul>
+            </li>
+            <li>الفصل الثالث: التوصيف الوظيفي والتقني للواجهات
+                <ul>
+                    <li>1. منظومة المصادقة وتأمين الوصول</li>
+                    <li>2. لوحة التحكم الرئيسية وإدارة المقررات</li>
+                    <li>3. محرك الامتحانات والتفاعل الحي</li>
+                    <li>4. نظام النتائج والتقارير الإحصائية</li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <div class="page">
+        <h1 class="chapter-title">الفصل الأول: مقدمة المشروع وأهدافه</h1>
+        
+        <div class="section-block">
+            <h2>1. مقدمة عامة</h2>
+            <p>يشهد العصر الحالي تطوراً متسارعاً في مجال تكنولوجيا المعلومات، مما أدى إلى ضرورة دمج هذه التقنيات في شتى مجالات الحياة، وعلى رأسها قطاع التعليم. يمثل التقييم الأكاديمي والامتحانات ركيزة أساسية لقياس مستوى التحصيل العلمي للطلاب. ومن هذا المنطلق، برزت الحاجة الماسة إلى التحول من الأنظمة الورقية التقليدية إلى الأنظمة الإلكترونية الذكية.</p>
+            <p>يقدم هذا المشروع تصميماً وتطويراً لـ "نظام إدارة الامتحانات والنتائج"، وهو عبارة عن منصة ويب متكاملة تهدف إلى أتمتة دورة حياة الامتحانات بالكامل، بدءاً من تسجيل الطلاب والمعلمين، مروراً بإنشاء الأسئلة وإدارة وقت الاختبار، وصولاً إلى التصحيح الآلي وإصدار التقارير الإحصائية الدقيقة.</p>
+        </div>
+
+        <div class="section-block">
+            <h2>2. مشكلة البحث</h2>
+            <p>تكمن المشكلة الرئيسية في القصور الذي تعاني منه المؤسسات التعليمية عند استخدام الأساليب التقليدية في إدارة الامتحانات، والتي تتمثل في:</p>
+            <ul>
+                <li>استهلاك وقت وجهد كبيرين في إعداد وتصوير وتوزيع الأوراق الامتحانية.</li>
+                <li>بطء عملية التصحيح اليدوي واحتمالية حدوث أخطاء بشرية في رصد الدرجات.</li>
+                <li>صعوبة استخراج تقارير تحليلية دقيقة حول أداء الطلاب ومستوى صعوبة الأسئلة.</li>
+                <li>القيود المكانية والزمانية التي تفرضها الامتحانات الورقية.</li>
+            </ul>
+        </div>
+
+        <div class="section-block">
+            <h2>3. أهداف المشروع</h2>
+            <p>يهدف النظام بشكل رئيسي إلى تذليل العقبات السابقة من خلال تحقيق الأهداف التالية:</p>
+            <ul>
+                <li><span class="highlight">الأتمتة الكاملة:</span> تحويل عملية الاختبار من بيئة ورقية إلى بيئة رقمية مستدامة بالكامل.</li>
+                <li><span class="highlight">السرعة والدقة:</span> توفير آلية تصحيح فورية تضمن حصول الطالب على نتيجته بدقة متناهية وبدون تدخل بشري.</li>
+                <li><span class="highlight">المرونة والأمان:</span> توفير بيئة اختبار آمنة تمنع محاولات الغش وتحافظ على سرية بيانات الطلاب والأسئلة.</li>
+                <li><span class="highlight">دعم اتخاذ القرار:</span> تزويد الإدارة التعليمية بتقارير ورسوم بيانية تساعد في تقييم المناهج والمقررات الدراسية.</li>
+            </ul>
+        </div>
+        
+        <div class="section-block">
+            <h2>4. نطاق عمل النظام (System Scope)</h2>
+            <p>يغطي النظام ثلاثة مستخدمين رئيسيين (أدوار):</p>
+            <ol>
+                <li><span class="highlight">الطالب (Student):</span> تسجيل الدخول، عرض الجدول الدراسي، أداء الامتحانات، استعراض النتائج ومراجعة الإجابات.</li>
+                <li><span class="highlight">المعلم (Teacher):</span> إدارة المقررات، بنك الأسئلة، جدولة الامتحانات، ومتابعة أداء الطلاب.</li>
+                <li><span class="highlight">مسؤول النظام (Admin):</span> الإدارة الشاملة للمنصة، التحكم في الصلاحيات، وإدارة البيانات الأساسية للمعهد.</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="page">
+        <h1 class="chapter-title">الفصل الثاني: متطلبات النظام والتقنيات المستخدمة</h1>
+
+        <div class="section-block">
+            <h2>1. المتطلبات الوظيفية (Functional Requirements)</h2>
+            <p>وهي الوظائف الأساسية التي يجب أن يقوم بها النظام لتلبية احتياجات المستخدمين:</p>
+            <ul>
+                <li>يجب أن يسمح النظام بإنشاء حسابات جديدة للمستخدمين مع تأكيد البريد الإلكتروني.</li>
+                <li>يجب أن يدعم النظام التوجيه الذكي للمستخدم بناءً على صلاحياته فور تسجيل الدخول.</li>
+                <li>يجب أن يوفر النظام واجهة لأداء الامتحان تتضمن مؤقتاً زمنياً وتتيح الحفظ التلقائي للإجابات.</li>
+                <li>يجب أن يقوم النظام بتصحيح الاختبارات الموضوعية آلياً وعرض النتيجة فور الانتهاء.</li>
+            </ul>
+        </div>
+
+        <div class="section-block">
+            <h2>2. المتطلبات غير الوظيفية (Non-Functional Requirements)</h2>
+            <p>وهي المعايير التي تحدد جودة أداء النظام وفعاليته:</p>
+            <ul>
+                <li><span class="highlight">الأمان (Security):</span> تشفير كلمات المرور وحماية المسارات (Protected Routes) لمنع الوصول غير المصرح به.</li>
+                <li><span class="highlight">الاستجابة (Responsiveness):</span> توافق واجهات النظام مع جميع أحجام الشاشات (Mobile, Tablet, Desktop).</li>
+                <li><span class="highlight">الموثوقية (Reliability):</span> قدرة النظام على العمل باستقرار أثناء فترات الضغط العالي ومزامنة البيانات في الوقت الفعلي (Real-time).</li>
+                <li><span class="highlight">سهولة الاستخدام (Usability):</span> تصميم واجهات مستخدم (UI/UX) بسيطة وبديهية لا تتطلب تدريباً مسبقاً للتعامل معها.</li>
+            </ul>
+        </div>
+
+        <div class="section-block">
+            <h2>3. التقنيات والبيئة البرمجية المستخدمة (Technologies Used)</h2>
+            <p>تم بناء النظام باستخدام أحدث التقنيات البرمجية لضمان الكفاءة وقابلية التوسع مستقبلاً، وقد تم تقسيم العمل إلى الواجهة الأمامية والخلفية:</p>
+            
+            <h3>أولاً: تقنيات الواجهة الأمامية (Frontend)</h3>
+            <ul>
+                <li><span class="highlight">React.js & TypeScript:</span> لبناء واجهات مستخدم تفاعلية، سريعة، وخالية من الأخطاء البرمجية بفضل استخدام الكتابة القوية (Typing).</li>
+                <li><span class="highlight">Vite:</span> كأداة لبناء وتهيئة المشروع لضمان سرعة التحميل والتطوير.</li>
+                <li><span class="highlight">React Router DOM:</span> لإدارة التنقل بين صفحات النظام بسلاسة وبناء المسارات المحمية.</li>
+            </ul>
+
+            <h3>ثانياً: تقنيات الواجهة الخلفية وقاعدة البيانات (Backend & DB)</h3>
+            <ul>
+                <li><span class="highlight">Supabase:</span> تم الاعتماد عليها كمنصة خلفية متكاملة تقدم مجموعة من الخدمات القوية.</li>
+                <li><span class="highlight">PostgreSQL:</span> قاعدة البيانات العلاقية القوية والمستقرة لحفظ بيانات الطلاب والامتحانات.</li>
+                <li><span class="highlight">Authentication:</span> نظام إدارة هوية آمن ومدمج لدعم تسجيل الدخول بالبريد الإلكتروني وحسابات Google.</li>
+                <li><span class="highlight">Real-time Capabilities:</span> لتحديث البيانات فورياً (مثل عدادات الوقت والإشعارات) دون الحاجة لإعادة تحميل الصفحة.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="page">
+        <h1 class="chapter-title">الفصل الثالث: التوصيف الوظيفي والتقني للواجهات</h1>
+        
+        <div class="section-block">
+            <h2>تمهيد</h2>
+            <p>يتناول هذا الفصل استعراضاً تحليلياً للواجهات الرئيسية لنظام إدارة الامتحانات (Exam Management System)، موضحاً الفلسفة التقنية التي بُني عليها النظام. لا يقتصر الوصف هنا على الجوانب البرمجية فحسب، بل يمتد ليشمل "القيمة الوظيفية" لكل صفحة وكيفية مساهمتها في رفع كفاءة العملية التعليمية.</p>
+        </div>
+
+        <div class="section-block">
+            <h2>1. منظومة المصادقة وتأمين الوصول (Login & Registration)</h2>
+            <ul>
+                <li><span class="highlight">صفحة تسجيل الدخول (Login Page):</span> تعتبر نقطة الدخول الرئيسية والمحمية للنظام. تدعم هذه الواجهة خاصية "التوجيه الذكي بحسب الدور" (Role-Based Redirect)؛ فبعد التحقق من هوية المستخدم وكلمة المرور، يوجه النظام الطالب إلى لوحة التحكم الخاصة به، والمدرس إلى لوحته، وهكذا. كما تتميز بمعالجة ذكية للأخطاء (Timeouts) ودعم الدخول عبر (Google OAuth).</li>
+                <li><span class="highlight">صفحة إنشاء الحساب (Register Page):</span> صُممت بنظام "Multi-Step Form" لتبسيط عملية التسجيل على ثلاث مراحل لضمان جودة البيانات. تتضمن الصفحة مؤشرات بصرية مثل مقياس قوة كلمة المرور، وخاصية حفظ التقدم (Progress Save) لمنع ضياع البيانات، وحقولاً مخصصة تتغير تلقائياً بناءً على دور المستخدم المختار (طالب أم مدرس).</li>
+                <li><span class="highlight">دورة استعادة الحساب:</span> شمل النظام صفحات متخصصة (Forgot Password & Reset Password) تعتمد على إرسال روابط آمنة وتدعم نظام (OTP) متعدد الخانات لضمان أمان استرداد الحسابات.</li>
+            </ul>
+        </div>
+
+        <div class="section-block">
+            <h2>2. لوحة التحكم الرئيسية وإدارة المقررات</h2>
+            <ul>
+                <li><span class="highlight">لوحة الطالب (Student Dashboard):</span> واجهة تفاعلية تمنح الطالب نظرة لحظية شاملة. تحتوي على بطاقات إحصائية للمعدل التراكمي، إشعارات الامتحانات القادمة، ومخطط بياني يوضح مسار الأداء. بالإضافة لساعة تحديث تلقائي تضفي شعوراً بحيوية النظام (Real-time).</li>
+                <li><span class="highlight">المقررات والجدول (Courses & Schedule):</span> تدعم طرق عرض متعددة (يومي، أسبوعي، شهري) مع ترميز لوني ذكي يميز بين الامتحانات (القادمة، المنتهية، أو الفائتة). واجهة المقررات تتيح الوصول السريع لملفات المادة وامتحاناتها من مكان مركزي واحد.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="page">
+        <div class="section-block">
+            <h2>3. محرك الامتحانات والتفاعل الحي (The Exam Engine)</h2>
+            <p>تعتبر هذه الواجهة أهم الصفحات في النظام والأكثر تعقيداً من الناحية التقنية، وقد صممت لتحاكي بيئات الاختبار الرسمية:</p>
+            <ul>
+                <li><span class="highlight">بيئة الأداء الغامرة (Fullscreen Mode):</span> تبدأ بتجهيز الطالب عبر شاشة تعليمات، ثم تنتقل لملء الشاشة بالكامل بدون مشتتات.</li>
+                <li><span class="highlight">التحكم والتنقل (Exam Sidebar):</span> شريط جانبي يضم شبكة لأرقام الأسئلة، مبرمجة بألوان تعبر عن الحالة (الأخضر للمجاب، الأصفر للمراجعة Flagged، والأبيض لغير المجاب).</li>
+                <li><span class="highlight">الاستقرار اللحظي:</span> تم دمج عداد وقت حي (Live Timer) يتزامن مع خوادم النظام لضمان العدالة، بالإضافة لخاصية "الحفظ التلقائي" المستمر للإجابات لضمان عدم ضياع أي بيانات إذا تم فصل الإنترنت.</li>
+                <li><span class="highlight">نافذة التسليم الآمن:</span> قبل الإنهاء، تظهر نافذة تأكيد تعرض ملخصاً لعدد الأسئلة غير المجابة والوقت المتبقي لمنع الإنهاء بالخطأ.</li>
+            </ul>
+        </div>
+
+        <div class="section-block">
+            <h2>4. نظام النتائج والتقارير الإحصائية</h2>
+            <ul>
+                <li><span class="highlight">بطاقة النتيجة الفورية (Score Card):</span> تظهر فور تسليم الامتحان، وتعرض نسبة النجاح والمؤشرات بصرياً، وتوزع الأداء (الإجابات الصحيحة والخاطئة).</li>
+                <li><span class="highlight">مراجعة الإجابات (Exam Review):</span> أداة تعليمية فائقة الأهمية تتيح للطالب استعراض أخطائه ومقارنتها بالإجابة النموذجية مع عرض شرح (Explanation) لكل سؤال إن وجد.</li>
+                <li><span class="highlight">المركز الإحصائي الشامل (Student Results):</span> صفحة تتضمن مخطط منحنى الأداء (Performance Trend Chart) وتتيح تصفية النتائج والبحث فيها، لتمكين الطالب من رصد نقاط قوته وضعفه عبر مختلف الفصول الدراسية.</li>
+            </ul>
+            
+            <br>
+        </div>
+    </div>
+
+    <script>
+        // فتح نافذة الطباعة تلقائياً
+        window.onload = function() {
+            setTimeout(function() {
+                window.print();
+            }, 800);
+        };
+    </script>
+</body>
+</html>
