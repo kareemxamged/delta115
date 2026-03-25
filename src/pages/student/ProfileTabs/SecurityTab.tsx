@@ -136,7 +136,7 @@ export default function SecurityTab() {
     // Initialization
     useEffect(() => {
         (async () => {
-            const { data, error } = await supabase.auth.mfa.listFactors();
+            const { data } = await supabase.auth.mfa.listFactors();
             if (data?.totp && data.totp.length > 0) {
                 const verified = data.totp.find(f => f.status === 'verified');
                 if (verified) {

@@ -66,7 +66,7 @@ export default function AcademicTab({ userId }: { userId: string }) {
                     return;
                 }
 
-                const rows = data as { score: number; exams: { total_marks: number } }[];
+                const rows = (data as unknown) as { score: number; exams: { total_marks: number } }[];
                 const scored = rows.filter(r => r.exams?.total_marks > 0);
                 const avgScore = scored.length > 0
                     ? scored.reduce((s, r) => s + (r.score / r.exams.total_marks) * 100, 0) / scored.length

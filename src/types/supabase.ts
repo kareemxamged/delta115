@@ -14,68 +14,122 @@ export type Database = {
     }
     public: {
         Tables: {
-            courses: {
+            course_materials: {
                 Row: {
-                    id: number
-                    code: string
-                    name: string
-                    description: string | null
-                    credits: number
-                    department: string | null
-                    semester: string | null
-                    instructor: string | null
+                    course_id: number
                     created_at: string
+                    description: string | null
+                    duration: string | null
+                    file_size: string | null
+                    id: number
+                    title: string
+                    type: string
+                    url: string | null
+                    week: number | null
                 }
                 Insert: {
-                    id?: number
-                    code: string
-                    name: string
-                    description?: string | null
-                    credits?: number
-                    department?: string | null
-                    semester?: string | null
-                    instructor?: string | null
+                    course_id: number
                     created_at?: string
+                    description?: string | null
+                    duration?: string | null
+                    file_size?: string | null
+                    id?: number
+                    title: string
+                    type: string
+                    url?: string | null
+                    week?: number | null
                 }
                 Update: {
-                    id?: number
-                    code?: string
-                    name?: string
-                    description?: string | null
-                    credits?: number
-                    department?: string | null
-                    semester?: string | null
-                    instructor?: string | null
+                    course_id?: number
                     created_at?: string
+                    description?: string | null
+                    duration?: string | null
+                    file_size?: string | null
+                    id?: number
+                    title?: string
+                    type?: string
+                    url?: string | null
+                    week?: number | null
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "course_materials_course_id_fkey"
+                        columns: ["course_id"]
+                        isOneToOne: false
+                        referencedRelation: "courses"
+                        referencedColumns: ["id"]
+                    },
+                ]
+            }
+            courses: {
+                Row: {
+                    code: string
+                    created_at: string | null
+                    credits: number | null
+                    department: string | null
+                    description: string | null
+                    id: number
+                    instructor: string | null
+                    name: string
+                    semester: string | null
+                }
+                Insert: {
+                    code: string
+                    created_at?: string | null
+                    credits?: number | null
+                    department?: string | null
+                    description?: string | null
+                    id?: number
+                    instructor?: string | null
+                    name: string
+                    semester?: string | null
+                }
+                Update: {
+                    code?: string
+                    created_at?: string | null
+                    credits?: number | null
+                    department?: string | null
+                    description?: string | null
+                    id?: number
+                    instructor?: string | null
+                    name?: string
+                    semester?: string | null
                 }
                 Relationships: []
             }
             enrollments: {
                 Row: {
-                    id: string
-                    student_id: string
-                    course_id: number
-                    status: 'enrolled' | 'completed' | 'dropped'
+                    course_id: number | null
+                    enrolled_at: string | null
                     grade: number | null
-                    enrolled_at: string
+                    id: string
+                    status: Database["public"]["Enums"]["enrollment_status"] | null
+                    student_id: string | null
                 }
                 Insert: {
-                    id?: string
-                    student_id: string
-                    course_id: number
-                    status?: 'enrolled' | 'completed' | 'dropped'
+                    course_id?: number | null
+                    enrolled_at?: string | null
                     grade?: number | null
-                    enrolled_at?: string
+                    id?: string
+                    status?: Database["public"]["Enums"]["enrollment_status"] | null
+                    student_id?: string | null
                 }
                 Update: {
-                    id?: string
-                    student_id?: string
-                    course_id?: number
-                    status?: 'enrolled' | 'completed' | 'dropped'
+                    course_id?: number | null
+                    enrolled_at?: string | null
                     grade?: number | null
-                    enrolled_at?: string
+                    id?: string
+                    status?: Database["public"]["Enums"]["enrollment_status"] | null
+                    student_id?: string | null
                 }
                 Relationships: [
+                    {
+                        foreignKeyName: "enrollments_course_id_fkey"
+                        columns: ["course_id"]
+                        isOneToOne: false
+                        referencedRelation: "courses"
+                        referencedColumns: ["id"]
+                    },
                     {
                         foreignKeyName: "enrollments_student_id_fkey"
                         columns: ["student_id"]
@@ -83,69 +137,86 @@ export type Database = {
                         referencedRelation: "profiles"
                         referencedColumns: ["id"]
                     },
-                    {
-                        foreignKeyName: "enrollments_course_id_fkey"
-                        columns: ["course_id"]
-                        isOneToOne: false
-                        referencedRelation: "courses"
-                        referencedColumns: ["id"]
-                    }
                 ]
             }
             exams: {
                 Row: {
+                    allow_review: boolean
+                    course_id: number | null
                     created_at: string | null
                     description: string | null
                     duration_minutes: number
+                    end_time: string | null
                     id: number
                     instructions: string[] | null
-                    start_time: string
+                    is_published: boolean | null
+                    is_randomized: boolean | null
+                    passing_score: number | null
+                    show_correct_answers: boolean
+                    start_time: string | null
                     status: Database["public"]["Enums"]["exam_status"] | null
                     subject: string
                     subject_color: string | null
                     subject_icon: string | null
+                    target_group: string | null
+                    target_student_ids: string[] | null
                     title: string
                     topics: string[] | null
                     total_marks: number | null
                     total_questions: number | null
                     tutor_name: string | null
-                    course_id: number | null
                 }
                 Insert: {
+                    allow_review?: boolean
+                    course_id?: number | null
                     created_at?: string | null
                     description?: string | null
                     duration_minutes: number
+                    end_time?: string | null
                     id?: number
                     instructions?: string[] | null
-                    start_time: string
+                    is_published?: boolean | null
+                    is_randomized?: boolean | null
+                    passing_score?: number | null
+                    show_correct_answers?: boolean
+                    start_time?: string | null
                     status?: Database["public"]["Enums"]["exam_status"] | null
                     subject: string
                     subject_color?: string | null
                     subject_icon?: string | null
+                    target_group?: string | null
+                    target_student_ids?: string[] | null
                     title: string
                     topics?: string[] | null
                     total_marks?: number | null
                     total_questions?: number | null
                     tutor_name?: string | null
-                    course_id?: number | null
                 }
                 Update: {
+                    allow_review?: boolean
+                    course_id?: number | null
                     created_at?: string | null
                     description?: string | null
                     duration_minutes?: number
+                    end_time?: string | null
                     id?: number
                     instructions?: string[] | null
-                    start_time?: string
+                    is_published?: boolean | null
+                    is_randomized?: boolean | null
+                    passing_score?: number | null
+                    show_correct_answers?: boolean
+                    start_time?: string | null
                     status?: Database["public"]["Enums"]["exam_status"] | null
                     subject?: string
                     subject_color?: string | null
                     subject_icon?: string | null
+                    target_group?: string | null
+                    target_student_ids?: string[] | null
                     title?: string
                     topics?: string[] | null
                     total_marks?: number | null
                     total_questions?: number | null
                     tutor_name?: string | null
-                    course_id?: number | null
                 }
                 Relationships: [
                     {
@@ -154,12 +225,14 @@ export type Database = {
                         isOneToOne: false
                         referencedRelation: "courses"
                         referencedColumns: ["id"]
-                    }
+                    },
                 ]
             }
             profiles: {
                 Row: {
+                    academic_degree: string | null
                     avatar_url: string | null
+                    bio: string | null
                     created_at: string | null
                     date_of_birth: string | null
                     department: string | null
@@ -167,21 +240,21 @@ export type Database = {
                     employee_id: string | null
                     full_name: string | null
                     headline: string | null
-                    bio: string | null
-                    specialization: string | null
-                    academic_degree: string | null
-                    years_of_experience: number | null
                     id: string
                     level: string | null
                     major: string | null
                     mobile: string | null
                     role: Database["public"]["Enums"]["app_role"] | null
+                    specialization: string | null
                     student_id: string | null
                     subjects: string | null
                     updated_at: string | null
+                    years_of_experience: number | null
                 }
                 Insert: {
+                    academic_degree?: string | null
                     avatar_url?: string | null
+                    bio?: string | null
                     created_at?: string | null
                     date_of_birth?: string | null
                     department?: string | null
@@ -189,21 +262,21 @@ export type Database = {
                     employee_id?: string | null
                     full_name?: string | null
                     headline?: string | null
-                    bio?: string | null
-                    specialization?: string | null
-                    academic_degree?: string | null
-                    years_of_experience?: number | null
                     id: string
                     level?: string | null
                     major?: string | null
                     mobile?: string | null
                     role?: Database["public"]["Enums"]["app_role"] | null
+                    specialization?: string | null
                     student_id?: string | null
                     subjects?: string | null
                     updated_at?: string | null
+                    years_of_experience?: number | null
                 }
                 Update: {
+                    academic_degree?: string | null
                     avatar_url?: string | null
+                    bio?: string | null
                     created_at?: string | null
                     date_of_birth?: string | null
                     department?: string | null
@@ -211,35 +284,27 @@ export type Database = {
                     employee_id?: string | null
                     full_name?: string | null
                     headline?: string | null
-                    bio?: string | null
-                    specialization?: string | null
-                    academic_degree?: string | null
-                    years_of_experience?: number | null
                     id?: string
                     level?: string | null
                     major?: string | null
                     mobile?: string | null
                     role?: Database["public"]["Enums"]["app_role"] | null
+                    specialization?: string | null
                     student_id?: string | null
                     subjects?: string | null
                     updated_at?: string | null
+                    years_of_experience?: number | null
                 }
-                Relationships: [
-                    {
-                        foreignKeyName: "profiles_id_fkey"
-                        columns: ["id"]
-                        isOneToOne: true
-                        referencedRelation: "users"
-                        referencedColumns: ["id"]
-                    }
-                ]
+                Relationships: []
             }
             questions: {
                 Row: {
                     correct_answer: string | null
                     created_at: string | null
                     exam_id: number
+                    explanation: string | null
                     id: number
+                    image_url: string | null
                     marks: number | null
                     options: Json | null
                     text: string
@@ -249,7 +314,9 @@ export type Database = {
                     correct_answer?: string | null
                     created_at?: string | null
                     exam_id: number
+                    explanation?: string | null
                     id?: number
+                    image_url?: string | null
                     marks?: number | null
                     options?: Json | null
                     text: string
@@ -259,7 +326,9 @@ export type Database = {
                     correct_answer?: string | null
                     created_at?: string | null
                     exam_id?: number
+                    explanation?: string | null
                     id?: number
+                    image_url?: string | null
                     marks?: number | null
                     options?: Json | null
                     text?: string
@@ -272,7 +341,55 @@ export type Database = {
                         isOneToOne: false
                         referencedRelation: "exams"
                         referencedColumns: ["id"]
-                    }
+                    },
+                ]
+            }
+            submissions: {
+                Row: {
+                    answers: Json | null
+                    exam_id: number | null
+                    id: string
+                    score: number | null
+                    started_at: string | null
+                    status: string | null
+                    student_id: string | null
+                    submitted_at: string | null
+                }
+                Insert: {
+                    answers?: Json | null
+                    exam_id?: number | null
+                    id?: string
+                    score?: number | null
+                    started_at?: string | null
+                    status?: string | null
+                    student_id?: string | null
+                    submitted_at?: string | null
+                }
+                Update: {
+                    answers?: Json | null
+                    exam_id?: number | null
+                    id?: string
+                    score?: number | null
+                    started_at?: string | null
+                    status?: string | null
+                    student_id?: string | null
+                    submitted_at?: string | null
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "submissions_exam_id_fkey"
+                        columns: ["exam_id"]
+                        isOneToOne: false
+                        referencedRelation: "exams"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "submissions_student_id_fkey"
+                        columns: ["student_id"]
+                        isOneToOne: false
+                        referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    },
                 ]
             }
         }
@@ -280,12 +397,14 @@ export type Database = {
             [_ in never]: never
         }
         Functions: {
-            [_ in never]: never
+            get_my_role: { Args: never; Returns: string }
+            is_staff: { Args: never; Returns: boolean }
         }
         Enums: {
             app_role: "admin" | "teacher" | "student"
+            enrollment_status: "enrolled" | "completed" | "dropped"
             exam_status: "upcoming" | "ongoing" | "finished"
-            question_type: "mcq" | "true_false" | "essay"
+            question_type: "mcq" | "true_false" | "essay" | "code"
         }
         CompositeTypes: {
             [_ in never]: never
@@ -293,25 +412,33 @@ export type Database = {
     }
 }
 
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
 export type Tables<
-    PublicTableNameOrOptions extends
-    | keyof (Database["public"]["Tables"] & Database["public"]["Views"])
-    | { schema: keyof Database },
-    TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-        Database[PublicTableNameOrOptions["schema"]]["Views"])
+    DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+    TableName extends DefaultSchemaTableNameOrOptions extends {
+        schema: keyof DatabaseWithoutInternals
+    }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-    ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-        Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+}
+    ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
             Row: infer R
         }
     ? R
     : never
-    : PublicTableNameOrOptions extends keyof (Database["public"]["Tables"] &
-        Database["public"]["Views"])
-    ? (Database["public"]["Tables"] &
-        Database["public"]["Views"])[PublicTableNameOrOptions] extends {
+    : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
             Row: infer R
         }
     ? R
@@ -319,20 +446,24 @@ export type Tables<
     : never
 
 export type TablesInsert<
-    PublicTableNameOrOptions extends
-    | keyof Database["public"]["Tables"]
-    | { schema: keyof Database },
-    TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+    TableName extends DefaultSchemaTableNameOrOptions extends {
+        schema: keyof DatabaseWithoutInternals
+    }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-    ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+}
+    ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
         Insert: infer I
     }
     ? I
     : never
-    : PublicTableNameOrOptions extends keyof Database["public"]["Tables"]
-    ? Database["public"]["Tables"][PublicTableNameOrOptions] extends {
+    : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Insert: infer I
     }
     ? I
@@ -340,20 +471,24 @@ export type TablesInsert<
     : never
 
 export type TablesUpdate<
-    PublicTableNameOrOptions extends
-    | keyof Database["public"]["Tables"]
-    | { schema: keyof Database },
-    TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+    TableName extends DefaultSchemaTableNameOrOptions extends {
+        schema: keyof DatabaseWithoutInternals
+    }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-    ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+}
+    ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
         Update: infer U
     }
     ? U
     : never
-    : PublicTableNameOrOptions extends keyof Database["public"]["Tables"]
-    ? Database["public"]["Tables"][PublicTableNameOrOptions] extends {
+    : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Update: infer U
     }
     ? U
@@ -361,14 +496,46 @@ export type TablesUpdate<
     : never
 
 export type Enums<
-    PublicEnumNameOrOptions extends
-    | keyof Database["public"]["Enums"]
-    | { schema: keyof Database },
-    EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+    DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+    EnumName extends DefaultSchemaEnumNameOrOptions extends {
+        schema: keyof DatabaseWithoutInternals
+    }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = PublicEnumNameOrOptions extends { schema: keyof Database }
-    ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
-    : PublicEnumNameOrOptions extends keyof Database["public"]["Enums"]
-    ? Database["public"]["Enums"][PublicEnumNameOrOptions]
+> = DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+}
+    ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+    : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
+
+export type CompositeTypes<
+    PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+    CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+        schema: keyof DatabaseWithoutInternals
+    }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+}
+    ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+    : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+    public: {
+        Enums: {
+            app_role: ["admin", "teacher", "student"],
+            enrollment_status: ["enrolled", "completed", "dropped"],
+            exam_status: ["upcoming", "ongoing", "finished"],
+            question_type: ["mcq", "true_false", "essay", "code"],
+        },
+    },
+} as const

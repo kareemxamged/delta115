@@ -9,7 +9,7 @@ interface StepperProps {
 export function Stepper({ currentStep, steps }: StepperProps) {
     return (
         <div className={styles.stepper}>
-            {steps.map((step, index) => {
+            {steps.map((step) => {
                 const isActive = currentStep === step.id;
                 const isCompleted = currentStep > step.id;
 

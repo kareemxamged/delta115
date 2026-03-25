@@ -6,7 +6,7 @@ interface Props {
     onChange: (val: boolean) => void;
 }
 
-export default function TrueFalseQuestion({ question, answer, onChange }: Props) {
+export default function TrueFalseQuestion({ answer, onChange }: Props) {
     return (
         <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center', marginTop: '2rem' }}>
             {/* True Button */}

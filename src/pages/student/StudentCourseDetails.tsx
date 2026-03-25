@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
-    ArrowLeft, Mail, Clock, Calendar, FileText,
+    ArrowLeft, Clock, Calendar, FileText,
     BookOpen, BarChart2, BookMarked, CheckCircle2,
     Circle, ExternalLink, Play, Trophy,
     TrendingUp, Users, ChevronRight, Lock

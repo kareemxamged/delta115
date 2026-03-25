@@ -1,4 +1,3 @@
-import { Question } from '../types';
 
 interface ExamFooterProps {
     onNext: () => void;

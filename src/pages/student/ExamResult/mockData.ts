@@ -10,6 +10,8 @@ export const MOCK_RESULT: ExamResultData = {
 
     correctAnswers: 25,
     wrongAnswers: 5,
+    skippedAnswers: 0,
+    allowRetry: false,
     timeSpent: "45 minutes",
     rank: "3/50",
 
