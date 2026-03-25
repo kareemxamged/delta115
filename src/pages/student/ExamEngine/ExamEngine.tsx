@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useExamEngine } from './hooks/useExamEngine';
-import styles from './ExamEngine.module.css'; // Make sure this exists or use inline styles
 import ExamHeader from './components/ExamHeader';
 import ExamSidebar from './components/ExamSidebar';
 import QuestionArea from './components/QuestionArea';
@@ -10,6 +9,7 @@ import SummaryModal from './components/SummaryModal';
 import ConfirmSubmitModal from './components/ConfirmSubmitModal';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import { examService } from '../../../services/examService';
+import { supabase } from '../../../services/supabase';
 import { Exam } from './types';
 
 export default function ExamEngine() {
@@ -21,29 +21,64 @@ export default function ExamEngine() {
     const [submission, setSubmission] = useState<any | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    // Prevents blank flash when redirecting to result
+    const isRedirecting = useRef(false);
 
     // Initialization
     useEffect(() => {
         const initExam = async () => {
             if (!id) return;
             try {
-                // 1. Fetch Exam Data
+                // Check submission status FIRST — if already submitted, redirect to result
+                const subData = await examService.startExam(Number(id));
+
+                if (subData?.status === 'submitted') {
+                    isRedirecting.current = true;
+                    navigate(`/student/exams/${id}/result`, { replace: true });
+                    return;
+                }
+
+                // Load exam data only if not already submitted
                 const examData = await examService.getExamWithQuestions(Number(id));
                 setExam(examData);
-
-                // 2. Start/Resume Exam (Returns full submission now)
-                const subData = await examService.startExam(Number(id));
                 setSubmission(subData);
             } catch (err) {
                 console.error("Failed to initialize exam:", err);
                 setError("Failed to load exam. Please try again.");
             } finally {
-                setIsLoading(false);
+                // Don't remove the loading spinner if we're redirecting
+                if (!isRedirecting.current) {
+                    setIsLoading(false);
+                }
             }
         };
 
         initExam();
-    }, [id]);
+    }, [id, navigate]);
+
+    // Fast Real-Time Kickout if Unpublished Mid-exam
+    useEffect(() => {
+        if (!exam) return;
+
+        const channel = supabase
+            .channel(`exam-engine-status-${exam.id}`)
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'exams', filter: `id=eq.${exam.id}` },
+                (payload: any) => {
+                    const updatedExam = payload.new;
+                    if (updatedExam.is_published === false) {
+                        alert("The instructor has unpublished this exam. Your session has been terminated.");
+                        navigate('/student/exams', { replace: true });
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [exam, navigate]);
 
     const {
         currentQuestion,

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from './ExamDetails.module.css';
 import { examService, Exam } from '../../services/examService';
+import { supabase } from '../../services/supabase';
 
 import LoadingSpinner from '../../components/LoadingSpinner';
 
@@ -12,6 +13,7 @@ export default function ExamDetails() {
     const [loading, setLoading] = useState(true);
     const [showStartModal, setShowStartModal] = useState(false);
     const [timeLeft, setTimeLeft] = useState('00:00:00');
+    const [invalidLink, setInvalidLink] = useState(false);
 
     // Fetch Exam Data
     useEffect(() => {
@@ -19,8 +21,10 @@ export default function ExamDetails() {
             if (id) {
                 try {
                     const data = await examService.getExamById(Number(id));
-                    if (data) {
+                    if (data && data.is_published !== false) {
                         setExam(data);
+                    } else {
+                        setInvalidLink(true);
                     }
                 } catch (error) {
                     console.error('Failed to load exam', error);
@@ -33,20 +37,99 @@ export default function ExamDetails() {
         fetchExam();
     }, [id, navigate]);
 
-    // Timer Logic (Mock countdown)
+    // Real countdown from exam.start_time
     useEffect(() => {
-        const timer = setInterval(() => {
-            const now = new Date();
-            // Just a mock countdown for visual
-            const hours = String(23 - now.getHours()).padStart(2, '0');
-            const minutes = String(59 - now.getMinutes()).padStart(2, '0');
-            const seconds = String(59 - now.getSeconds()).padStart(2, '0');
-            setTimeLeft(`${hours}:${minutes}:${seconds}`);
-        }, 1000);
+        if (!exam) return;
+
+        const computeCountdown = () => {
+            if (!exam.start_time) { setTimeLeft('Always Available'); return; }
+            const target = new Date(exam.start_time).getTime();
+
+            const diff = target - Date.now();
+            if (diff <= 0) { setTimeLeft('00:00:00'); return; }
+
+            const totalSeconds = Math.floor(diff / 1000);
+            const h = Math.floor(totalSeconds / 3600);
+            const m = Math.floor((totalSeconds % 3600) / 60);
+            const s = totalSeconds % 60;
+            setTimeLeft(
+                `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+            );
+        };
+
+        computeCountdown();
+        const timer = setInterval(computeCountdown, 1000);
         return () => clearInterval(timer);
-    }, []);
+    }, [exam]);
+
+    // Fast Real-Time Kickout if Unpublished Mid-view
+    useEffect(() => {
+        if (!exam) return;
+
+        const channel = supabase
+            .channel(`exam-status-${exam.id}`)
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'exams', filter: `id=eq.${exam.id}` },
+                (payload: any) => {
+                    const updatedExam = payload.new;
+                    if (updatedExam.is_published === false) {
+                        // Force redirect
+                        navigate('/student/exams', { replace: true });
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [exam, navigate]);
 
     if (loading) return <LoadingSpinner fullScreen text="Loading Details..." />;
+
+    if (invalidLink) {
+        return (
+            <div className={styles.container} style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className={styles.modalContent} style={{
+                    textAlign: 'center',
+                    background: 'rgba(15, 23, 42, 0.8)',
+                    borderColor: 'rgba(239, 68, 68, 0.3)',
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.05)',
+                    padding: '3rem 2.5rem'
+                }}>
+                    <div style={{
+                        width: '80px', height: '80px', borderRadius: '50%',
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        border: '2px solid rgba(239, 68, 68, 0.4)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        margin: '0 auto 1.5rem auto',
+                        boxShadow: '0 0 30px rgba(239, 68, 68, 0.2)'
+                    }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '40px', height: '40px', color: '#f87171' }}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+
+                    <h2 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f1f5f9', marginBottom: '1rem', letterSpacing: '-0.02em' }}>Invalid or Expired Link</h2>
+                    <p style={{ color: '#94a3b8', marginBottom: '2.5rem', lineHeight: 1.6, fontSize: '1.05rem' }}>
+                        The exam you are looking for does not exist, or it has been temporarily unpublished by the instructor.
+                    </p>
+
+                    <button
+                        className={styles.startBtn}
+                        style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)', marginTop: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                        onClick={() => navigate('/student/exams')}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '20px', height: '20px' }}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                        </svg>
+                        Return to Dashboard
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     if (!exam) return null;
 
@@ -97,7 +180,7 @@ export default function ExamDetails() {
                         </div>
                         <div>
                             <span className={styles.metaLabel}>Date</span>
-                            <span className={styles.metaValue}>{new Date(exam.start_time).toLocaleDateString()}</span>
+                            <span className={styles.metaValue}>{exam.start_time ? new Date(exam.start_time).toLocaleDateString() : 'Always Available'}</span>
                         </div>
                     </div>
 
@@ -115,6 +198,18 @@ export default function ExamDetails() {
                     </div>
                 </div>
             </header>
+            {/* Description / Instructions from teacher */}
+            {exam.description && (
+                <div className={styles.sectionCard} style={{ margin: '1.5rem 0', gridColumn: '1 / -1' }}>
+                    <h3 className={styles.sectionTitle}>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="20" height="20">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                        </svg>
+                        Description &amp; Instructions
+                    </h3>
+                    <p style={{ color: '#cbd5e1', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{exam.description}</p>
+                </div>
+            )}
 
             <div className={styles.contentGrid}>
                 {/* Main Info Column */}
@@ -193,9 +288,9 @@ export default function ExamDetails() {
                     <div className={styles.sectionCard} style={{ background: 'rgba(30, 41, 59, 0.7)', backdropFilter: 'blur(10px)' }}>
                         <div className={styles.timerBox}>
                             <div className={styles.timerLabel}>
-                                {exam.status === 'upcoming' ? 'Starts In' : 'Time Remaining'}
+                                {!exam.start_time ? 'Availability' : exam.status === 'upcoming' ? 'Starts In' : 'Status'}
                             </div>
-                            <div className={styles.timerValue}>{timeLeft}</div>
+                            <div className={styles.timerValue} style={{ fontSize: !exam.start_time ? '1.5rem' : undefined }}>{timeLeft}</div>
                         </div>
 
                         {/* Logic based on SUBMISSION status first, then Exam status */}
@@ -213,7 +308,7 @@ export default function ExamDetails() {
                             </button>
                         ) : (
                             /* No submission yet */
-                            exam.status === 'upcoming' ? (
+                            (exam.status === 'upcoming' && exam.start_time && new Date(exam.start_time).getTime() > Date.now()) ? (
                                 <button className={styles.startBtn} disabled>
                                     Not Started Yet
                                 </button>

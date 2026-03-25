@@ -1,0 +1,257 @@
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    min-height: calc(100vh - 80px);
+}
+
+.header {
+    margin-bottom: 2rem;
+}
+
+.title {
+    font-size: 1.8rem;
+    color: white;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.subtitle {
+    color: var(--text-muted);
+    font-size: 1rem;
+}
+
+/* Stepper */
+.stepper {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 3rem;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+    color: var(--text-muted);
+}
+
+.step.active {
+    color: var(--primary);
+}
+
+.step.completed {
+    color: #10b981;
+}
+
+.stepIcon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.step.active .stepIcon {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.step.completed .stepIcon {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: #10b981;
+    color: #10b981;
+}
+
+.stepLabel {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.stepConnector {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    width: 100%;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.1);
+    z-index: -1;
+}
+
+.step:last-child .stepConnector {
+    display: none;
+}
+
+.step.completed .stepConnector {
+    background: #10b981;
+}
+
+/* Form Area */
+.formArea {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 2.5rem;
+}
+
+/* Actions Footer */
+.actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: none;
+}
+
+.btnOutline {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.btnOutline:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.btnPrimary {
+    background: var(--primary);
+    color: white;
+}
+
+.btnPrimary:hover {
+    background: var(--primary-hover);
+}
+
+/* Shared Form Elements */
+.inputGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.label {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.input,
+.select,
+.textarea {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    color: white;
+    font-size: 0.95rem;
+    transition: border-color 0.2s;
+    font-family: inherit;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.errorText {
+    color: #f87171;
+    font-size: 0.8rem;
+    margin-top: -0.5rem;
+}
+
+/* Question Builder */
+.questionCard {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.questionCard:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.questionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.removeBtn {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.removeBtn:hover {
+    background: rgba(239, 68, 68, 0.2);
+}
+
+.optionsGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+/* AI Button */
+.aiBtn {
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    transition: opacity 0.2s;
+}
+
+.aiBtn:hover {
+    opacity: 0.9;
+}

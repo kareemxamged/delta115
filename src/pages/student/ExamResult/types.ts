@@ -4,7 +4,7 @@ export interface QuestionTypePerformance {
     correct: number;
     score: number;
     totalScore: number;
-    performance: 'Excellent' | 'Very Good' | 'Good' | 'Needs Improvement';
+    performance: 'Excellent' | 'Very Good' | 'Good' | 'Needs Improvement' | 'Pending Review';
 }
 
 export interface ExamResultData {
@@ -18,6 +18,7 @@ export interface ExamResultData {
     // Stats
     correctAnswers: number;
     wrongAnswers: number;
+    skippedAnswers: number;
     timeSpent: string; // e.g., "45 mins"
     rank: string; // e.g., "3/50"
 

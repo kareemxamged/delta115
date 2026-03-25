@@ -8,11 +8,22 @@ export type Exam = Database['public']['Tables']['exams']['Row'] & {
     score?: number;
     submission_id?: string;
     submission_status?: 'started' | 'submitted';
+    is_published?: boolean;
+    is_randomized?: boolean;
+    end_time?: string | null;
 };
 
 export const examService = {
     async getExams() {
         const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+
+        // Fetch user profile to know their level and role
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role, level')
+            .eq('id', user.id)
+            .single();
 
         // Fetch exams and their submissions for the current user
         const { data, error } = await supabase
@@ -32,16 +43,90 @@ export const examService = {
             throw error;
         }
 
-        // Transform data to include submission info at top level
-        return data.map((exam: any) => {
-            const submission = exam.submissions?.find((s: any) => s.student_id === user?.id) || exam.submissions?.[0];
-            return {
-                ...exam,
-                submission_id: submission?.id,
-                submission_status: submission?.status,
-                score: submission?.score
-            };
-        });
+        let filteredData = data;
+
+        // Apply Exam Assignment rules for students
+        if (profile?.role === 'student') {
+            filteredData = data.filter((exam: any) => {
+                // Hide unpublished exams
+                if (exam.is_published === false) return false;
+
+                const hasSpecificStudents = exam.target_student_ids && exam.target_student_ids.length > 0;
+
+                if (hasSpecificStudents) {
+                    // strictly restricted to these specific students
+                    return exam.target_student_ids.includes(user.id);
+                }
+
+                if (exam.target_group) {
+                    // strictly restricted to this level
+                    return exam.target_group === profile.level;
+                }
+
+                // unrestricted global exam
+                return true;
+            });
+        }
+
+        const statusOrder: Record<string, number> = { ongoing: 0, upcoming: 1, finished: 2 };
+
+        // Sort: ongoing → upcoming (closest first) → finished (most recent first)
+        return filteredData
+            .map((exam: any) => {
+                const submission = exam.submissions?.find((s: any) => s.student_id === user.id) || exam.submissions?.[0];
+                return {
+                    ...exam,
+                    submission_id: submission?.id,
+                    submission_status: submission?.status,
+                    score: submission?.score
+                };
+            })
+            .sort((a: any, b: any) => {
+                const aOrder = statusOrder[a.status] ?? 3;
+                const bOrder = statusOrder[b.status] ?? 3;
+                if (aOrder !== bOrder) return aOrder - bOrder;
+
+                // Within 'upcoming': sort by nearest start_time first
+                if (a.status === 'upcoming' && b.status === 'upcoming') {
+                    return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+                }
+                // Within 'finished': most recent first
+                if (a.status === 'finished' && b.status === 'finished') {
+                    return new Date(b.start_time).getTime() - new Date(a.start_time).getTime();
+                }
+                return 0;
+            });
+    },
+
+    async getExamSubmissions(examId: number) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+
+        if (profile?.role !== 'teacher' && profile?.role !== 'admin') {
+            throw new Error('Unauthorized access to submissions');
+        }
+
+        const { data, error } = await supabase
+            .from('submissions')
+            .select(`
+                *,
+                profiles:student_id (
+                    full_name,
+                    avatar_url
+                )
+            `)
+            .eq('exam_id', examId)
+            .order('started_at', { ascending: false });
+
+        if (error) throw error;
+
+        return data;
     },
 
     async getExamById(id: number) {
@@ -92,6 +177,18 @@ export const examService = {
 
         if (existing) return existing;
 
+        // Check if exam is expired before starting
+        const { data: examData, error: examError } = await supabase
+            .from('exams')
+            .select('end_time')
+            .eq('id', examId)
+            .single();
+
+        if (examError) throw examError;
+        if (examData.end_time && new Date(examData.end_time).getTime() < Date.now()) {
+            throw new Error('This exam has expired and can no longer be started.');
+        }
+
         // Create new submission
         const { data, error } = await supabase
             .from('submissions')
@@ -128,8 +225,17 @@ export const examService = {
 
         if (questionsError) throw questionsError;
 
+        let processedQuestions = questionsData;
+        if (examData.is_randomized) {
+            processedQuestions = [...questionsData];
+            for (let i = processedQuestions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [processedQuestions[i], processedQuestions[j]] = [processedQuestions[j], processedQuestions[i]];
+            }
+        }
+
         // 3. Map to Engine Types
-        const questions: Question[] = questionsData.map((q: any) => {
+        const questions: Question[] = processedQuestions.map((q: any) => {
             const base = {
                 id: q.id,
                 text: q.text,
@@ -138,7 +244,17 @@ export const examService = {
             };
 
             if (q.type === 'mcq') {
-                return { ...base, options: q.options };
+                // options is stored as JSONB object {A: "...", B: "..."} — convert to string[]
+                let opts: string[] = [];
+                if (Array.isArray(q.options)) {
+                    opts = q.options; // already an array, passthrough
+                } else if (q.options && typeof q.options === 'object') {
+                    // Convert {A: "text", B: "text"} → ["A. text", "B. text"]
+                    opts = Object.entries(q.options as Record<string, string>)
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([key, val]) => `${key}. ${val}`);
+                }
+                return { ...base, options: opts };
             }
             if (q.type === 'code') {
                 // For now, mock initial code if not in DB options
@@ -154,6 +270,7 @@ export const examService = {
         return {
             id: String(examData.id), // Ensure ID is string for Engine compatibility if needed, or update types
             title: examData.title,
+            end_time: examData.end_time ? new Date(examData.end_time).toISOString() : undefined,
             durationMinutes: examData.duration_minutes,
             totalQuestions: examData.total_questions,
             questions: questions
@@ -188,18 +305,21 @@ export const examService = {
         // Simple Grading Logic
         if (questions) {
             questions.forEach(q => {
-                const studentAnswer = answers[q.id];
-                if (studentAnswer === undefined) return;
+                const rawAnswer = answers[q.id];
+                if (rawAnswer === undefined) return;
 
                 if (q.type === 'mcq' || q.type === 'true_false') {
-                    if (String(studentAnswer) === String(q.correct_answer)) {
+                    // Normalize MCQ answer: "B. useState" → "B" (handles both plain key and prefixed format)
+                    const normalizedAnswer = q.type === 'mcq'
+                        ? String(rawAnswer).split('.')[0].trim()
+                        : String(rawAnswer);
+
+                    if (normalizedAnswer === String(q.correct_answer)) {
                         totalScore += q.marks;
                         correctCount++;
                     }
                 }
-                // Essay/Code: auto-grade not implemented, assume 0 or manual review needed. 
-                // For MVP demo, we can give full marks for code if not empty? No, let's keep it 0 or random for demo.
-                // Let's just track objective questions for now.
+                // Essay/Code: manual review, score stays 0
             });
         }
 
@@ -246,7 +366,11 @@ export const examService = {
             let isCorrect = undefined;
 
             if (q.type === 'mcq' || q.type === 'true_false') {
-                isCorrect = String(userAnswer) === String(q.correct_answer);
+                // Normalize MCQ answer: "B. useState" → "B"
+                const normalizedAnswer = q.type === 'mcq'
+                    ? String(userAnswer ?? '').split('.')[0].trim()
+                    : String(userAnswer ?? '');
+                isCorrect = normalizedAnswer === String(q.correct_answer);
             }
 
             const baseRequest = {
@@ -260,7 +384,18 @@ export const examService = {
                 correctAnswer: q.correct_answer // Include correct answer for review
             };
 
-            if (q.type === 'mcq') return { ...baseRequest, options: q.options };
+            if (q.type === 'mcq') {
+                // Normalize options: {A: "...", B: "..."} → ["A. ...", "B. ..."]
+                let opts: string[] = [];
+                if (Array.isArray(q.options)) {
+                    opts = q.options;
+                } else if (q.options && typeof q.options === 'object') {
+                    opts = Object.entries(q.options as Record<string, string>)
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([key, val]) => `${key}. ${val}`);
+                }
+                return { ...baseRequest, options: opts };
+            }
             if (q.type === 'code') return { ...baseRequest, language: 'javascript', initialCode: '// ...' };
             if (q.type === 'essay') return { ...baseRequest, wordLimit: 200 };
 
@@ -272,7 +407,11 @@ export const examService = {
             examTitle: examData.title,
             score: submission.score || 0,
             totalScore: examData.total_marks,
-            questions: questions as any
+            allow_review: examData.allow_review ?? true,
+            show_correct_answers: examData.show_correct_answers ?? true,
+            questions: (examData.show_correct_answers ?? true)
+                ? questions as any
+                : (questions as any[]).map((q: any) => { const { correctAnswer, ...rest } = q; return rest; })
         };
     },
 
@@ -296,26 +435,81 @@ export const examService = {
 
         if (!examData || !questions) return null;
 
-        // Calculate Stats
+        // Calculate Stats — per-question accuracy
         let correctAnswers = 0;
         let wrongAnswers = 0;
-        let earnedScore = submission.score || 0;
+        let skippedAnswers = 0;
+        const earnedScore = submission.score || 0;
         const totalScore = examData.total_marks;
         const answers = submission.answers || {};
 
-        questions.forEach(q => {
+        // Bucket per-type stats for breakdown
+        const typeMap: Record<string, { total: number; correct: number; score: number; totalScore: number }> = {};
+
+        questions.forEach((q: any) => {
             const ans = answers[q.id];
+            const typeKey =
+                q.type === 'mcq' ? 'MCQ' :
+                    q.type === 'true_false' ? 'True/False' :
+                        q.type === 'essay' ? 'Essay' :
+                            q.type === 'code' ? 'Code' : q.type;
+
+            if (!typeMap[typeKey]) typeMap[typeKey] = { total: 0, correct: 0, score: 0, totalScore: 0 };
+            typeMap[typeKey].total++;
+            typeMap[typeKey].totalScore += q.marks ?? 1;
+
             if (q.type === 'mcq' || q.type === 'true_false') {
-                if (String(ans) === String(q.correct_answer)) {
-                    correctAnswers++;
+                if (ans === undefined || ans === null || ans === '') {
+                    skippedAnswers++;
                 } else {
-                    wrongAnswers++;
+                    // Normalize: "B. useState" → "B"
+                    const normalizedAns = q.type === 'mcq'
+                        ? String(ans).split('.')[0].trim()
+                        : String(ans);
+                    if (normalizedAns === String(q.correct_answer)) {
+                        correctAnswers++;
+                        typeMap[typeKey].correct++;
+                        typeMap[typeKey].score += q.marks ?? 1;
+                    } else {
+                        wrongAnswers++;
+                    }
                 }
             }
+            // Essay/Code: objective auto-grade = 0, pending manual review
         });
 
-        // Mock Qualitative Data for now (Tutor Feedback, etc.)
-        // In real app, this would come from a 'reviews' table.
+        // Derive performance label per type
+        const perfLabel = (pct: number, isPending: boolean): string => {
+            if (isPending) return 'Pending Review';
+            if (pct >= 90) return 'Excellent';
+            if (pct >= 75) return 'Very Good';
+            if (pct >= 60) return 'Good';
+            return 'Needs Improvement';
+        };
+
+        const breakdown = Object.entries(typeMap).map(([type, stats]) => {
+            const isPending = type === 'Essay' || type === 'Code';
+            const pct = stats.totalScore > 0 ? (stats.score / stats.totalScore) * 100 : 0;
+            return {
+                type: type as any,
+                total: stats.total,
+                correct: stats.correct,
+                score: stats.score,
+                totalScore: stats.totalScore,
+                performance: perfLabel(pct, isPending) as any,
+            };
+        });
+
+        // Derive strengths / weaknesses from real breakdown
+        const strengths = breakdown
+            .filter(b => b.performance === 'Excellent' || b.performance === 'Very Good')
+            .map(b => `${b.type} (${b.correct}/${b.total} correct)`);
+        const weaknesses = breakdown
+            .filter(b => b.performance === 'Needs Improvement' || b.performance === 'Pending Review')
+            .map(b => b.performance === 'Pending Review'
+                ? `${b.type} — Awaiting Manual Review`
+                : `${b.type} (${b.correct}/${b.total} correct)`);
+
         return {
             id: submission.id,
             examTitle: examData.title,
@@ -326,19 +520,17 @@ export const examService = {
 
             correctAnswers,
             wrongAnswers,
-            timeSpent: "45 mins", // Mock
-            rank: "5/20", // Mock
-
-            breakdown: [
-                { type: 'MCQ', total: 10, correct: 8, score: 8, totalScore: 10, performance: 'Very Good' },
-                { type: 'True/False', total: 5, correct: 5, score: 5, totalScore: 5, performance: 'Excellent' },
-                // ...
-            ],
+            skippedAnswers,
+            timeSpent: "45 mins", // Mock — would come from submission timestamps
+            rank: "5/20",        // Mock — would come from class aggregation
+            breakdown,
 
             tutorName: "System Auto-Grader",
-            tutorNote: "This is an auto-generated result based on your objective answers.",
-            strengths: ["Objective Questions"],
-            weaknesses: ["Subjective Questions (Pending Review)"],
+            tutorNote: earnedScore === 0
+                ? "No points scored yet. Some questions may still be pending manual review."
+                : "This result is based on auto-graded objective questions. Subjective questions are pending instructor review.",
+            strengths: strengths.length > 0 ? strengths : ["Keep practising — you'll get there!"],
+            weaknesses: weaknesses.length > 0 ? weaknesses : ["No significant weak areas detected."],
 
             allowRetry: true,
             classAverage: 75,
@@ -378,5 +570,215 @@ export const examService = {
             date: sub.submitted_at,
             status: (sub.score / sub.exams.total_marks) >= 0.5 ? 'Passed' : 'Failed'
         }));
+    },
+
+    // --- Manage Exams Methods ---
+
+    async toggleExamPublishStatus(examId: number, isPublished: boolean): Promise<void> {
+        const { error } = await supabase
+            .from('exams')
+            .update({ is_published: isPublished })
+            .eq('id', examId);
+        if (error) throw error;
+    },
+
+    async toggleExamRandomization(examId: number, isRandomized: boolean): Promise<void> {
+        const { error } = await supabase
+            .from('exams')
+            .update({ is_randomized: isRandomized })
+            .eq('id', examId);
+        if (error) throw error;
+    },
+
+    async deleteExam(examId: number): Promise<void> {
+        // Due to foreign key constraints, deleting an exam might require cascade rules in DB.
+        // If not set up properly, questions/submissions might block it. Assuming DB cascade is configured.
+        const { error } = await supabase
+            .from('exams')
+            .delete()
+            .eq('id', examId);
+        if (error) throw error;
+    },
+
+    async duplicateExam(examId: number): Promise<any> {
+        // 1. Fetch original exam
+        const { data: originalExam, error: fetchExamError } = await supabase
+            .from('exams')
+            .select('*')
+            .eq('id', examId)
+            .single();
+
+        if (fetchExamError) throw fetchExamError;
+
+        // 2. Insert new exam (remove id, created_at to trigger generation; update title)
+        const { id, created_at, status, ...examData } = originalExam as any;
+        const { data: newExam, error: insertExamError } = await supabase
+            .from('exams')
+            .insert({
+                ...examData,
+                title: `${examData.title} (Copy)`,
+                status: 'upcoming'
+            })
+            .select()
+            .single();
+
+        if (insertExamError) throw insertExamError;
+
+        // 3. Fetch original questions
+        const { data: originalQuestions, error: fetchQsError } = await supabase
+            .from('questions')
+            .select('*')
+            .eq('exam_id', examId);
+
+        if (fetchQsError) throw fetchQsError;
+
+        // 4. Insert copied questions tied to the new exam ID
+        if (originalQuestions && originalQuestions.length > 0) {
+            const newQuestions = originalQuestions.map((q: any) => {
+                const { id, created_at, exam_id, ...qData } = q;
+                return {
+                    ...qData,
+                    exam_id: newExam.id
+                };
+            });
+
+            const { error: insertQsError } = await supabase
+                .from('questions')
+                .insert(newQuestions);
+
+            if (insertQsError) throw insertQsError;
+        }
+
+        return newExam;
+    },
+
+    async getExamForEdit(examId: number): Promise<any> {
+        // 1. Fetch Exam
+        const { data: examData, error: examError } = await supabase
+            .from('exams')
+            .select('*')
+            .eq('id', examId)
+            .single();
+
+        if (examError) throw examError;
+
+        // 2. Fetch Questions
+        const { data: questionsData, error: questionsError } = await supabase
+            .from('questions')
+            .select('*')
+            .eq('exam_id', examId)
+            .order('id', { ascending: true });
+
+        if (questionsError) throw questionsError;
+
+        // Helper to safely parse options which might be stored as strings or JSON
+        const parseOptions = (optionsRaw: any) => {
+            if (Array.isArray(optionsRaw)) return optionsRaw;
+            if (typeof optionsRaw === 'string') {
+                try {
+                    return JSON.parse(optionsRaw);
+                } catch {
+                    return ['', '', '', ''];
+                }
+            }
+            return ['', '', '', ''];
+        };
+
+        // 3. Format Questions for the Form
+        const formattedQuestions = questionsData.map((q: any) => ({
+            text: q.text,
+            type: q.type,
+            options: parseOptions(q.options),
+            correct_answer: q.correct_answer || '',
+            marks: q.marks || 1,
+            explanation: q.explanation || '',
+            image_url: q.image_url || ''
+        }));
+
+        // 4. Return combined format matching ExamFormData
+        return {
+            ...examData,
+            // Format datetime-local string if possible (YYYY-MM-DDThh:mm)
+            start_time: examData.start_time ? new Date(new Date(examData.start_time).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '',
+            end_time: examData.end_time ? new Date(new Date(examData.end_time).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '',
+            questions: formattedQuestions.length > 0 ? formattedQuestions : [
+                { text: '', type: 'mcq', options: ['', '', '', ''], correct_answer: '', marks: 1, explanation: '' }
+            ]
+        };
+    },
+
+    async updateExam(examId: number, data: any): Promise<void> {
+        // 1. Fetch current exam to enforce strictly "Upcoming" rule
+        const { data: currentExam, error: fetchError } = await supabase
+            .from('exams')
+            .select('status, start_time')
+            .eq('id', examId)
+            .single();
+
+        if (fetchError) throw fetchError;
+
+        const now = Date.now();
+        const startTime = currentExam.start_time ? new Date(currentExam.start_time).getTime() : null;
+
+        if (currentExam.status !== 'upcoming' || (startTime && startTime <= now)) {
+            throw new Error('This exam has already started and can no longer be edited.');
+        }
+
+        // 2. Calculate Total Marks
+        const totalMarks = data.questions.reduce((sum: number, q: any) => sum + (q.marks || 1), 0);
+
+        // 3. Update Exam record
+        const examRecord = {
+            title: data.title,
+            subject: data.subject,
+            description: data.description,
+            course_id: data.course_id || null,
+            start_time: data.start_time ? new Date(data.start_time).toISOString() : null,
+            end_time: data.end_time ? new Date(data.end_time).toISOString() : null,
+            duration_minutes: data.duration_minutes,
+            passing_score: data.passing_score,
+            is_randomized: data.is_randomized,
+            total_marks: totalMarks,
+            total_questions: data.questions.length,
+            allow_review: data.allow_review,
+            show_correct_answers: data.show_correct_answers,
+            target_group: data.target_group || null,
+            target_student_ids: data.target_student_ids && data.target_student_ids.length > 0
+                ? data.target_student_ids
+                : null,
+        };
+
+        const { error: updateError } = await supabase
+            .from('exams')
+            .update(examRecord)
+            .eq('id', examId);
+
+        if (updateError) throw updateError;
+
+        // 4. Delete existing questions cleanly
+        const { error: deleteError } = await supabase
+            .from('questions')
+            .delete()
+            .eq('exam_id', examId);
+
+        if (deleteError) throw deleteError;
+
+        // 5. Insert updated questions
+        const questionsToInsert = data.questions.map((q: any) => ({
+            exam_id: examId,
+            text: q.text,
+            type: q.type,
+            options: q.type === 'mcq' ? (q.options?.filter(Boolean) || null) : null,
+            correct_answer: q.correct_answer,
+            marks: q.marks,
+            image_url: q.image_url || null,
+            explanation: q.explanation || null,
+        }));
+
+        const { error: questionsError } = await supabase
+            .from('questions')
+            .insert(questionsToInsert);
+
+        if (questionsError) throw questionsError;
     }
 };

@@ -33,6 +33,22 @@ export default function ExamReview() {
     if (loading) return <LoadingSpinner fullScreen text="Loading Review..." />;
     if (!data) return <div style={{ color: 'white', padding: '3rem', textAlign: 'center' }}>Review data not found.</div>;
 
+    // Block access if teacher disabled review
+    if (data.allow_review === false) {
+        return (
+            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1rem', color: 'white', padding: '3rem' }}>
+                <div style={{ fontSize: '3rem' }}>🔒</div>
+                <h2 style={{ fontSize: '1.5rem' }}>Review Not Available</h2>
+                <p style={{ color: 'var(--text-muted)', textAlign: 'center', maxWidth: '400px' }}>
+                    The teacher has disabled reviewing for this exam.
+                </p>
+                <button onClick={() => navigate(`/student/exams/${id}/result`)} style={{ marginTop: '1rem', padding: '0.6rem 1.5rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                    ← Back to Results
+                </button>
+            </div>
+        );
+    }
+
     const filteredQuestions = data.questions.filter(q => {
         if (filter === 'all') return true;
 
@@ -112,9 +128,9 @@ export default function ExamReview() {
                     if (item.id === 'correct') activeColor = '#10b981';
                     if (item.id === 'wrong') activeColor = '#ef4444';
 
-                    let borderColor = isActive ? activeColor : 'rgba(255,255,255,0.1)';
-                    let bg = isActive ? `${activeColor}20` : 'rgba(255,255,255,0.03)';
-                    let textColor = isActive ? activeColor : 'var(--text-muted)';
+                    const borderColor = isActive ? activeColor : 'rgba(255,255,255,0.1)';
+                    const bg = isActive ? `${activeColor}20` : 'rgba(255,255,255,0.03)';
+                    const textColor = isActive ? activeColor : 'var(--text-muted)';
 
                     return (
                         <button
@@ -155,7 +171,7 @@ export default function ExamReview() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 {filteredQuestions.length > 0 ? (
                     filteredQuestions.map((q, idx) => (
-                        <ReviewCard key={q.id} question={q} index={idx} />
+                        <ReviewCard key={q.id} question={q} index={idx} showCorrectAnswer={data.show_correct_answers !== false} />
                     ))
                 ) : (
                     <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>

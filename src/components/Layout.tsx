@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import UserAvatar from './UserAvatar';
 import styles from './Layout.module.css';
 
 // Simple Icon Components for cleaner JSX
@@ -67,13 +68,6 @@ export default function Layout() {
 
     if (!user) return <Navigate to="/login" replace />;
 
-    // Helper for initials
-    const getInitials = (name: string) => {
-        return name
-            ? name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-            : 'U';
-    };
-
     return (
         <div className={styles.layout}>
             <aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
@@ -93,13 +87,12 @@ export default function Layout() {
 
                 {/* Profile Section */}
                 <div className={styles.profileSection}>
-                    <div className={styles.avatar}>
-                        {user.avatar_url ? (
-                            <img src={user.avatar_url} alt="Profile" />
-                        ) : (
-                            getInitials(user.full_name || user.email || '')
-                        )}
-                    </div>
+                    <UserAvatar
+                        url={user.avatar_url}
+                        name={user.full_name || user.email}
+                        size={48}
+                        className={styles.avatar}
+                    />
                     {!isCollapsed && (
                         <div className={styles.profileInfo}>
                             <div className={styles.profileName}>
@@ -161,12 +154,12 @@ export default function Layout() {
 
                 <div style={{ padding: isCollapsed ? '0 0.5rem' : '0 1rem' }}>
                     <Link
-                        to={user?.role === 'student' ? '/student/profile' : '/settings'}
+                        to={user?.role === 'student' ? '/student/profile' : user?.role === 'teacher' ? '/teacher/profile' : '/settings'}
                         title="Profile"
                         className={`${styles.navLink} ${location.pathname.includes('/profile') ? styles.activeLink : ''}`}
                         style={{ marginBottom: '0.5rem', justifyContent: isCollapsed ? 'center' : 'flex-start' }}
                     >
-                        <Icons.Settings /> {!isCollapsed && <span>{user?.role === 'student' ? 'Profile' : 'Settings'}</span>}
+                        <Icons.Settings /> {!isCollapsed && <span>{user?.role === 'admin' ? 'Settings' : 'Profile'}</span>}
                     </Link>
                 </div>
 

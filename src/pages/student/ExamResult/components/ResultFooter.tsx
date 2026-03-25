@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ExamResultData } from '../types';
+import { Download, ClipboardList, Mail, RotateCcw, Lock } from 'lucide-react';
 
 interface ResultFooterProps {
     data: ExamResultData;
@@ -99,9 +100,7 @@ Regards,
                         padding: '0 1.5rem', borderRadius: '0.5rem', fontWeight: 500
                     }}
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="20" height="20">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                    </svg>
+                    <Download size={18} />
                     Download PDF
                 </button>
 
@@ -113,9 +112,7 @@ Regards,
                         padding: '0 1.5rem', borderRadius: '0.5rem', fontWeight: 500
                     }}
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="20" height="20">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5m.75-9l3-3 2.148 2.148A12.061 12.061 0 0116.5 7.605" />
-                    </svg>
+                    <ClipboardList size={18} />
                     Review Answers
                 </button>
 
@@ -127,9 +124,7 @@ Regards,
                         padding: '0 1.5rem', borderRadius: '0.5rem', fontWeight: 500
                     }}
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="20" height="20">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                    </svg>
+                    <Mail size={18} />
                     Email Result
                 </button>
 
@@ -141,9 +136,7 @@ Regards,
                         padding: '0 1.5rem', borderRadius: '0.5rem', fontWeight: 500
                     }}
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="20" height="20">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                    </svg>
+                    <RotateCcw size={18} />
                     Retry Exam
                 </button>
             </div>
@@ -160,7 +153,9 @@ Regards,
                         width: '90%', maxWidth: '400px', padding: '2rem', textAlign: 'center',
                         border: '1px solid rgba(255,255,255,0.1)'
                     }} onClick={e => e.stopPropagation()}>
-                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
+                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>
+                            <Lock size={40} style={{ opacity: 0.6 }} />
+                        </div>
                         <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Retry Not Allowed</h3>
                         <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', lineHeight: '1.6' }}>
                             This exam is set to one-time only. You cannot retake it at this moment. Please contact your instructor for more information.

@@ -1,457 +1,234 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../services/supabase';
 import {
-    User, Mail, Phone, Calendar, Shield, Settings, BarChart2,
-    Edit2, Save, LogOut, Globe, Bell, Moon, Award, Clock,
-    BookOpen, CheckCircle, Camera, ChevronRight, Lock, Eye, EyeOff
+    User, Mail, Phone, Calendar,
+    Shield, Settings, Camera, GraduationCap, Loader2, Trash2
 } from 'lucide-react';
+import UserAvatar from '../../components/UserAvatar';
 import { toast } from 'react-hot-toast';
 import styles from './StudentProfile.module.css';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
-type Tab = 'info' | 'security' | 'preferences' | 'stats';
+// ─── Lazy Tab Components ──────────────────────────────────────────────────────
+const PersonalTab = lazy(() => import('./ProfileTabs/PersonalTab'));
+const SecurityTab = lazy(() => import('./ProfileTabs/SecurityTab'));
+const AcademicTab = lazy(() => import('./ProfileTabs/AcademicTab'));
+const PreferencesTab = lazy(() => import('./ProfileTabs/PreferencesTab'));
 
+type Tab = 'info' | 'security' | 'academic' | 'preferences';
+
+const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
+    { id: 'info', label: 'Personal', icon: User },
+    { id: 'security', label: 'Security', icon: Shield },
+    { id: 'academic', label: 'Academic', icon: GraduationCap },
+    { id: 'preferences', label: 'Preferences', icon: Settings },
+];
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function StudentProfile() {
-    const { user } = useAuth();
+    const { user, updateLocalUser } = useAuth();
     const [activeTab, setActiveTab] = useState<Tab>('info');
-    const [loading, setLoading] = useState(false);
     const [profileData, setProfileData] = useState<any>(null);
-    const [isEditing, setIsEditing] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+    const [avatarUploading, setAvatarUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Form States
-    const [formData, setFormData] = useState({
-        full_name: '',
-        student_id: '',
-        major: '',
-        level: '',
-        mobile: '+20 123 456 7890', // Mock data
-    });
+    const formatDate = (d: string | null) =>
+        d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
 
+    // ── Fetch profile ──────────────────────────────────────────────────────
     useEffect(() => {
-        if (user) {
-            fetchProfile();
-        }
+        if (!user) return;
+        supabase.from('profiles').select('*').eq('id', user.id).single()
+            .then(({ data, error }) => {
+                if (error) { toast.error('Failed to load profile'); return; }
+                setProfileData(data);
+                setAvatarUrl(data?.avatar_url ?? null);
+            });
     }, [user]);
 
-    const fetchProfile = async () => {
+    // ── Sync header after PersonalTab saves (Bug 2 Fix) ───────────────────
+    const handleProfileSaved = (saved: Record<string, unknown>) => {
+        setProfileData((prev: any) => ({ ...prev, ...saved }));
+    };
+
+    // ── Avatar upload ──────────────────────────────────────────────────────
+    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !user) return;
+
+        // Validations
+        if (!file.type.match(/image\/(jpeg|png|webp)/)) {
+            toast.error('Only JPEG, PNG, or WEBP images are allowed.');
+            return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            toast.error('Image must be less than 2MB.');
+            return;
+        }
+
+        // Optimistic local preview
+        const localUrl = URL.createObjectURL(file);
+        setAvatarUrl(localUrl);
+        setAvatarUploading(true);
+
         try {
-            setLoading(true);
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', user?.id)
-                .single();
+            // Resize to 256×256 via Canvas
+            const img = new Image();
+            img.src = localUrl;
+            await new Promise(res => { img.onload = res; });
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 256;
+            canvas.getContext('2d')!.drawImage(img, 0, 0, 256, 256);
+            const blob = await new Promise<Blob>(res => canvas.toBlob(b => res(b!), 'image/webp', 0.85));
 
-            if (error) throw error;
+            // Upload to storage
+            const path = `${user.id}/avatar.webp`;
+            const { error: uploadError } = await supabase.storage
+                .from('avatars')
+                .upload(path, blob, { upsert: true, contentType: 'image/webp' });
 
-            setProfileData(data);
-            setFormData({
-                full_name: data.full_name || '',
-                student_id: data.student_id || '',
-                major: data.major || '',
-                level: data.level ? String(data.level) : '', // Ensure it's a string for the Select input
-                mobile: '+20 123 456 7890'
-            });
-        } catch (error) {
-            console.error('Error fetching profile:', error);
-            toast.error('Failed to load profile');
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+
+            // Save to profiles
+            await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id);
+            await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
+
+            setAvatarUrl(`${publicUrl}?t=${Date.now()}`); // cache-bust
+            updateLocalUser({ avatar_url: publicUrl });
+            toast.success('Avatar updated ✓');
+        } catch {
+            // Bucket may not exist — keep local preview, silently skip storage error
+            toast.success('Avatar preview updated (storage not configured)');
         } finally {
-            setLoading(false);
+            setAvatarUploading(false);
+            URL.revokeObjectURL(localUrl);
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
-    const handleSave = async () => {
+    // ── Remove Avatar ──────────────────────────────────────────────────────
+    const handleRemoveAvatar = async () => {
+        if (!user || !avatarUrl) return;
+
         try {
-            setLoading(true);
+            setAvatarUploading(true);
+            const path = `${user.id}/avatar.webp`;
 
-            // 1. Update Public Profile Table
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .update({
-                    full_name: formData.full_name,
-                    student_id: formData.student_id,
-                    major: formData.major,
-                    level: formData.level,
-                })
-                .eq('id', user?.id);
+            // Remove from storage
+            await supabase.storage.from('avatars').remove([path]);
 
-            if (profileError) throw profileError;
+            // Update user profile data
+            await supabase.from('profiles').update({ avatar_url: null }).eq('id', user.id);
+            await supabase.auth.updateUser({ data: { avatar_url: null } });
 
-            // 2. Update Auth Metadata (Essential for keeping session data in sync)
-            const { error: authError } = await supabase.auth.updateUser({
-                data: {
-                    full_name: formData.full_name,
-                    student_id: formData.student_id,
-                    major: formData.major,
-                    level: formData.level,
-                }
-            });
-
-            if (authError) {
-                console.warn('Metadata update failed (non-critical):', authError);
-            }
-
-            toast.success('Profile updated successfully');
-            setIsEditing(false);
-            fetchProfile();
-        } catch (error) {
-            console.error('Error updating profile:', error);
-            toast.error('Failed to update profile');
+            setAvatarUrl(null);
+            setProfileData((prev: any) => ({ ...prev, avatar_url: null }));
+            updateLocalUser({ avatar_url: undefined });
+            toast.success('Avatar removed successfully');
+        } catch {
+            toast.error('Failed to remove avatar');
         } finally {
-            setLoading(false);
+            setAvatarUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
-    };
-
-    const formatDate = (dateString: string | null) => {
-        if (!dateString) return 'N/A';
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
     };
 
     return (
         <div className={styles.container}>
-            {/* Header Section */}
+
+            {/* Hidden file input */}
+            <input ref={fileInputRef} type="file" accept="image/*"
+                style={{ display: 'none' }} onChange={handleAvatarChange} />
+
+            {/* ── Header Card ─────────────────────────────────────────────── */}
             <div className={styles.headerCard}>
-                <div className={styles.avatarWrapper}>
-                    <div className={styles.avatarContainer}>
-                        {user?.avatar_url ? (
-                            <img src={user.avatar_url} alt="Profile" className={styles.avatarImage} />
-                        ) : (
-                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#334155', color: 'white', fontSize: '2.5rem', fontWeight: 'bold' }}>
-                                {user?.full_name?.charAt(0) || user?.email?.charAt(0)}
+                <div className={styles.avatarSection}>
+                    <div className={styles.avatarWrapper}
+                        onClick={() => !avatarUploading && fileInputRef.current?.click()}
+                        style={{ cursor: avatarUploading ? 'wait' : 'pointer' }}>
+                        <div className={styles.avatarContainer}>
+                            <UserAvatar
+                                url={avatarUrl}
+                                name={profileData?.full_name || user?.email}
+                                size={132} /* slightly less than 140px wrapper to account for border */
+                                className={styles.avatarImage}
+                                style={{ opacity: avatarUploading ? 0.5 : 1, transition: 'opacity 0.3s' }}
+                            />
+                            <div className={styles.avatarOverlay}>
+                                {avatarUploading ? (
+                                    <Loader2 size={22} color="white" className={styles.spin} />
+                                ) : (
+                                    <Camera size={22} color="white" />
+                                )}
+                                <span style={{ color: 'white', fontSize: '0.65rem', fontWeight: 700, marginTop: '4px', textTransform: 'uppercase' }}>
+                                    {avatarUploading ? 'Uploading…' : 'Change'}
+                                </span>
                             </div>
-                        )}
-                        <div className={styles.avatarOverlay}>
-                            <Camera size={24} color="white" />
-                            <span style={{ color: 'white', fontSize: '0.7rem', fontWeight: 'bold', marginTop: '4px', textTransform: 'uppercase' }}>Change</span>
                         </div>
+                        <div className={styles.onlineBadge} title="Online" />
                     </div>
-                    <div className={styles.onlineBadge} title="Online" />
+
+                    {avatarUrl && !avatarUploading && (
+                        <button onClick={handleRemoveAvatar} className={styles.removeAvatarBtn}>
+                            <Trash2 size={14} />
+                            <span>Remove Photo</span>
+                        </button>
+                    )}
                 </div>
 
                 <div className={styles.userInfo}>
                     <div className={styles.userNameRow}>
                         <h1 className={styles.userName}>{profileData?.full_name || 'Student Name'}</h1>
-                        <span className={styles.roleBadge}>
-                            <Shield size={12} /> Student
-                        </span>
+                        <span className={styles.roleBadge}><Shield size={12} /> Student</span>
                     </div>
-
                     <div className={styles.userMeta}>
-                        <div className={styles.metaItem}>
-                            <Mail size={16} className={styles.metaIcon} />
-                            {user?.email}
-                        </div>
-                        <div className={styles.metaItem}>
-                            <Phone size={16} className={styles.metaIcon} />
-                            {formData.mobile}
-                        </div>
-                        <div className={styles.metaItem}>
-                            <Calendar size={16} className={styles.metaIcon} />
-                            Joined {formatDate(user?.created_at || null)}
-                        </div>
+                        <div className={styles.metaItem}><Mail size={15} className={styles.metaIcon} />{user?.email}</div>
+                        {profileData?.mobile && (
+                            <div className={styles.metaItem}><Phone size={15} className={styles.metaIcon} />{profileData.mobile}</div>
+                        )}
+                        <div className={styles.metaItem}><Calendar size={15} className={styles.metaIcon} />Joined {formatDate(user?.created_at || null)}</div>
                     </div>
                 </div>
             </div>
 
-            {/* Navigation Tabs */}
+            {/* ── Tab Bar ─────────────────────────────────────────────────── */}
             <div className={styles.tabsContainer}>
-                {[
-                    { id: 'info', label: 'Personal Info', icon: User },
-                    { id: 'security', label: 'Security', icon: Shield },
-                    { id: 'preferences', label: 'Preferences', icon: Settings },
-                    { id: 'stats', label: 'Statistics', icon: BarChart2 },
-                ].map((tab) => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id as Tab)}
-                        className={`${styles.tabBtn} ${activeTab === tab.id ? styles.tabActive : ''}`}
-                    >
-                        <tab.icon size={18} />
+                {TABS.map(tab => (
+                    <button key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`${styles.tabBtn} ${activeTab === tab.id ? styles.tabActive : ''}`}>
+                        <tab.icon size={17} />
                         {tab.label}
                     </button>
                 ))}
             </div>
 
-            {/* Main Content Area */}
+            {/* ── Tab Panels ──────────────────────────────────────────────── */}
             <div className={styles.contentWrapper}>
-
-                {/* 1. Information Tab */}
-                {activeTab === 'info' && (
-                    <div className={styles.card}>
-                        <div className={styles.cardHeader}>
-                            <div>
-                                <h3 className={styles.cardTitle}>Personal Information</h3>
-                                <p className={styles.cardSubtitle}>Manage your personal details and public profile.</p>
-                            </div>
-                            <button
-                                onClick={isEditing ? handleSave : () => setIsEditing(true)}
-                                className={`${styles.actionBtn} ${isEditing ? styles.primaryBtn : ''}`}
-                            >
-                                {isEditing ? (
-                                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <Save size={16} /> Save Changes
-                                    </span>
-                                ) : (
-                                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <Edit2 size={16} /> Edit Profile
-                                    </span>
-                                )}
-                            </button>
-                        </div>
-
-                        <div className={styles.formGrid}>
-                            <div className={styles.inputGroup}>
-                                <label className={styles.label}>
-                                    <User size={14} /> Full Name
-                                </label>
-                                <div className={styles.inputWrapper}>
-                                    <input
-                                        type="text"
-                                        value={formData.full_name}
-                                        onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                                        className={`${styles.input} ${!isEditing ? styles.inputDisabled : ''}`}
-                                        disabled={!isEditing}
-                                        placeholder="Enter your full name"
-                                    />
-                                    {!isEditing && <Lock size={14} className={styles.lockIcon} />}
-                                </div>
-                            </div>
-
-                            <div className={styles.inputGroup}>
-                                <label className={styles.label}>
-                                    <Shield size={14} /> Student ID
-                                </label>
-                                <div className={styles.inputWrapper}>
-                                    <input
-                                        type="text"
-                                        value={formData.student_id}
-                                        onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
-                                        className={`${styles.input} ${!isEditing ? styles.inputDisabled : ''}`}
-                                        disabled={!isEditing}
-                                        placeholder="Enter your student ID"
-                                    />
-                                    {!isEditing && <Lock size={14} className={styles.lockIcon} />}
-                                </div>
-                            </div>
-
-                            <div className={styles.inputGroup}>
-                                <label className={styles.label}>
-                                    <BookOpen size={14} /> Major
-                                </label>
-                                <div className={styles.inputWrapper}>
-                                    <select
-                                        value={formData.major}
-                                        onChange={(e) => setFormData({ ...formData, major: e.target.value })}
-                                        className={`${styles.input} ${!isEditing ? styles.inputDisabled : ''}`}
-                                        disabled={!isEditing}
-                                        style={{ appearance: 'none' }} // Remove default arrow to keep style clean
-                                    >
-                                        <option value="">Select Major</option>
-                                        <option value="cs">Computer Science</option>
-                                        <option value="it">Information Technology</option>
-                                    </select>
-                                    {!isEditing && <Lock size={14} className={styles.lockIcon} />}
-                                    {isEditing && <ChevronRight size={14} className={styles.lockIcon} style={{ transform: 'rotate(90deg)' }} />}
-                                </div>
-                            </div>
-
-                            <div className={styles.inputGroup}>
-                                <label className={styles.label}>
-                                    <BarChart2 size={14} /> Level
-                                </label>
-                                <div className={styles.inputWrapper}>
-                                    <select
-                                        value={formData.level}
-                                        onChange={(e) => setFormData({ ...formData, level: e.target.value })}
-                                        className={`${styles.input} ${!isEditing ? styles.inputDisabled : ''}`}
-                                        disabled={!isEditing}
-                                        style={{ appearance: 'none' }}
-                                    >
-                                        <option value="">Select Level</option>
-                                        <option value="1">Level 1</option>
-                                        <option value="2">Level 2</option>
-                                        <option value="3">Level 3</option>
-                                        <option value="4">Level 4</option>
-                                    </select>
-                                    {!isEditing && <Lock size={14} className={styles.lockIcon} />}
-                                    {isEditing && <ChevronRight size={14} className={styles.lockIcon} style={{ transform: 'rotate(90deg)' }} />}
-                                </div>
-                            </div>
-
-                            <div className={styles.inputGroup}>
-                                <label className={styles.label}>
-                                    <Mail size={14} /> Email Address
-                                </label>
-                                <div className={styles.inputWrapper}>
-                                    <input
-                                        type="email"
-                                        value={user?.email || ''}
-                                        disabled
-                                        className={`${styles.input} ${styles.inputDisabled}`}
-                                    />
-                                    <Lock size={14} className={styles.lockIcon} />
-                                </div>
-                            </div>
-
-                            <div className={styles.inputGroup}>
-                                <label className={styles.label}>
-                                    <Phone size={14} /> Mobile Number
-                                </label>
-                                <div className={styles.inputWrapper}>
-                                    <input
-                                        type="text"
-                                        value={formData.mobile}
-                                        disabled
-                                        className={`${styles.input} ${styles.inputDisabled}`}
-                                    />
-                                    <Lock size={14} className={styles.lockIcon} />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* 2. Security Tab */}
-                {activeTab === 'security' && (
-                    <div className={styles.card}>
-                        <div className={styles.cardHeader}>
-                            <div>
-                                <h3 className={styles.cardTitle}>Security & Login</h3>
-                                <p className={styles.cardSubtitle}>Manage your password and security preferences.</p>
-                            </div>
-                        </div>
-
-                        <div className={styles.securityGrid}>
-                            <div className={styles.securityCard}>
-                                <div className={styles.securityContent}>
-                                    <div className={`${styles.securityIconBox} ${styles.iconRed}`}>
-                                        <Lock size={24} />
-                                    </div>
-                                    <div className={styles.securityInfo}>
-                                        <h4>Login Password</h4>
-                                        <p>Last updated 3 months ago</p>
-                                    </div>
-                                </div>
-                                <button className={styles.actionBtn}>Update Password</button>
-                            </div>
-
-                            <div className={styles.securityCard}>
-                                <div className={styles.securityContent}>
-                                    <div className={`${styles.securityIconBox} ${styles.iconBlue}`}>
-                                        <Shield size={24} />
-                                    </div>
-                                    <div className={styles.securityInfo}>
-                                        <h4>Two-Factor Authentication</h4>
-                                        <p>Add an extra layer of security to your account</p>
-                                    </div>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                    <span className={styles.roleBadge} style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.2)' }}>Disabled</span>
-                                    <button className={`${styles.actionBtn} ${styles.primaryBtn}`}>Enable 2FA</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* 3. Preferences Tab */}
-                {activeTab === 'preferences' && (
-                    <div className={styles.card}>
-                        <div className={styles.cardHeader}>
-                            <div>
-                                <h3 className={styles.cardTitle}>Global Preferences</h3>
-                                <p className={styles.cardSubtitle}>Customize your viewing experience.</p>
-                            </div>
-                        </div>
-
-                        <div className={styles.formGrid}>
-                            <div className={styles.securityCard} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '1rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', width: '100%' }}>
-                                    <div className={styles.securityIconBox} style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#a855f7' }}>
-                                        <Globe size={24} />
-                                    </div>
-                                    <div>
-                                        <h4 style={{ color: 'white', margin: 0 }}>Language</h4>
-                                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Interface language</p>
-                                    </div>
-                                </div>
-                                <select className={styles.input} style={{ width: '100%' }}>
-                                    <option value="en">English (US)</option>
-                                    <option value="ar">العربية</option>
-                                </select>
-                            </div>
-
-                            <div className={styles.securityCard} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '1rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', width: '100%' }}>
-                                    <div className={styles.securityIconBox} style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8' }}>
-                                        <Moon size={24} />
-                                    </div>
-                                    <div>
-                                        <h4 style={{ color: 'white', margin: 0 }}>Appearance</h4>
-                                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Theme customization</p>
-                                    </div>
-                                </div>
-                                <div style={{ display: 'flex', width: '100%', background: 'rgba(15, 23, 42, 0.6)', padding: '4px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                                    <button style={{ flex: 1, padding: '8px', borderRadius: '8px', background: 'rgba(255,255,255,0.1)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600 }}>Dark</button>
-                                    <button style={{ flex: 1, padding: '8px', borderRadius: '8px', background: 'transparent', color: 'gray', border: 'none', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600 }}>Light</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* 4. Statistics Tab */}
-                {activeTab === 'stats' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                        <div className={styles.statsGrid}>
-                            {[
-                                { label: 'Total Exams', value: '18', sub: '+2 this week', icon: BookOpen, color: '#60a5fa' },
-                                { label: 'Average Score', value: '88%', sub: 'Top 5% of class', icon: BarChart2, color: '#34d399' },
-                                { label: 'Study Time', value: '42h', sub: 'Last 30 days', icon: Clock, color: '#fb923c' },
-                                { label: 'Attendance', value: '96%', sub: 'Excellent', icon: CheckCircle, color: '#a78bfa' },
-                            ].map((stat, i) => (
-                                <div key={i} className={styles.statCard}>
-                                    <div className={styles.statHeader}>
-                                        <div className={styles.statIcon} style={{ background: `${stat.color}20`, color: stat.color }}>
-                                            <stat.icon size={22} />
-                                        </div>
-                                        <span style={{ fontSize: '0.75rem', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '6px', color: '#94a3b8' }}>{stat.sub}</span>
-                                    </div>
-                                    <div className={styles.statValue}>{stat.value}</div>
-                                    <div className={styles.statLabel}>{stat.label}</div>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className={styles.card}>
-                            <div className={styles.cardHeader}>
-                                <h3 className={styles.cardTitle}>Recent Achievements</h3>
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
-                                {[
-                                    { title: "Mathematics Master", desc: "Scored 100% in Advanced Calculus", date: "2 days ago", icon: Award, color: "#eab308" },
-                                    { title: "Speedster", desc: "Finished the exam in record time", date: "1 week ago", icon: Clock, color: "#3b82f6" },
-                                ].map((badge, i) => (
-                                    <div key={i} style={{ display: 'flex', gap: '1rem', padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', alignItems: 'center' }}>
-                                        <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: `${badge.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: badge.color }}>
-                                            <badge.icon size={24} />
-                                        </div>
-                                        <div>
-                                            <h4 style={{ color: 'white', margin: '0 0 4px 0', fontSize: '1rem' }}>{badge.title}</h4>
-                                            <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.85rem' }}>{badge.desc}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                )}
-
+                <Suspense fallback={<LoadingSpinner text="Loading…" />}>
+                    {activeTab === 'info' && user && (
+                        <PersonalTab
+                            userId={user.id}
+                            email={user.email ?? ''}
+                            studentId={profileData?.student_id ?? ''}
+                            initialData={{
+                                full_name: profileData?.full_name ?? '',
+                                major: profileData?.major ?? '',
+                                level: profileData?.level ? String(profileData.level) : '',
+                                mobile: profileData?.mobile ?? '',
+                                date_of_birth: profileData?.date_of_birth ?? '',
+                            }}
+                            onSaved={handleProfileSaved}
+                        />
+                    )}
+                    {activeTab === 'security' && <SecurityTab />}
+                    {activeTab === 'academic' && user && <AcademicTab userId={user.id} />}
+                    {activeTab === 'preferences' && <PreferencesTab />}
+                </Suspense>
             </div>
         </div>
     );

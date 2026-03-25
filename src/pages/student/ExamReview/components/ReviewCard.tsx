@@ -3,9 +3,10 @@ import { QuestionReview } from '../../../../types/review';
 interface ReviewCardProps {
     question: QuestionReview;
     index: number;
+    showCorrectAnswer?: boolean;
 }
 
-export default function ReviewCard({ question, index }: ReviewCardProps) {
+export default function ReviewCard({ question, index, showCorrectAnswer = true }: ReviewCardProps) {
     const isObjective = question.type === 'mcq' || question.type === 'true_false';
     const isCorrect = question.isCorrect;
 
@@ -44,9 +45,9 @@ export default function ReviewCard({ question, index }: ReviewCardProps) {
                     let bg = 'rgba(255,255,255,0.02)';
                     let border = '1px solid rgba(255,255,255,0.08)';
 
-                    if (isSelected && isCorrect) { bg = 'rgba(16, 185, 129, 0.15)'; border = '1px solid #10b981'; } // User Correct
-                    else if (isSelected && !isCorrect) { bg = 'rgba(239, 68, 68, 0.15)'; border = '1px solid #ef4444'; } // User Wrong
-                    else if (!isSelected && isCorrectOpt) { bg = 'rgba(16, 185, 129, 0.1)'; border = '1px dashed #10b981'; } // Correct Answer (if user missed)
+                    if (isSelected && isCorrect) { bg = 'rgba(16, 185, 129, 0.15)'; border = '1px solid #10b981'; }
+                    else if (isSelected && !isCorrect) { bg = 'rgba(239, 68, 68, 0.15)'; border = '1px solid #ef4444'; }
+                    else if (!isSelected && isCorrectOpt && showCorrectAnswer) { bg = 'rgba(16, 185, 129, 0.1)'; border = '1px dashed #10b981'; }
 
                     return (
                         <div key={idx} style={{
@@ -78,7 +79,7 @@ export default function ReviewCard({ question, index }: ReviewCardProps) {
                             </div>
                             <span style={{ flex: 1 }}>{opt}</span>
                             {isSelected && <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>(Your Answer)</span>}
-                            {isCorrectOpt && !isSelected && <span style={{ fontSize: '0.8rem', color: '#10b981' }}>Correct Answer</span>}
+                            {showCorrectAnswer && isCorrectOpt && !isSelected && <span style={{ fontSize: '0.8rem', color: '#10b981' }}>Correct Answer</span>}
                         </div>
                     );
                 })}
@@ -97,7 +98,7 @@ export default function ReviewCard({ question, index }: ReviewCardProps) {
 
                     if (isSelected && isCorrect) { bg = 'rgba(16, 185, 129, 0.2)'; border = '1px solid #10b981'; }
                     else if (isSelected && !isCorrect) { bg = 'rgba(239, 68, 68, 0.2)'; border = '1px solid #ef4444'; }
-                    else if (!isSelected && isCorrectOpt) { bg = 'rgba(16, 185, 129, 0.1)'; border = '1px dashed #10b981'; }
+                    else if (!isSelected && isCorrectOpt && showCorrectAnswer) { bg = 'rgba(16, 185, 129, 0.1)'; border = '1px dashed #10b981'; }
 
                     return (
                         <div key={opt} style={{
@@ -114,7 +115,7 @@ export default function ReviewCard({ question, index }: ReviewCardProps) {
                         }}>
                             {opt}
                             {isSelected && (isCorrect ? '✅' : '❌')}
-                            {!isSelected && isCorrectOpt && <span style={{ fontSize: '0.8rem', color: '#10b981' }}>✔ Correct</span>}
+                            {showCorrectAnswer && !isSelected && isCorrectOpt && <span style={{ fontSize: '0.8rem', color: '#10b981' }}>✔ Correct</span>}
                         </div>
                     );
                 })}

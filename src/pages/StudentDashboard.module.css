@@ -1,406 +1,518 @@
 /* StudentDashboard.module.css */
 
 .container {
-    animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes fadeIn {
     from {
         opacity: 0;
-        transform: translateY(20px);
-        scale: 0.98;
+        transform: translateY(16px);
     }
 
     to {
         opacity: 1;
         transform: translateY(0);
-        scale: 1;
     }
 }
 
-/* Header Section */
+/* ─── Layout: Main + Sidebar ─────────────────────────────────────────────── */
+.layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 2rem;
+    align-items: start;
+}
+
+@media (max-width: 1100px) {
+    .layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────────── */
 .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 2.5rem;
+    margin-bottom: 2rem;
 }
 
-.welcomeSection h1 {
-    font-size: 2.2rem;
+.greeting h1 {
+    font-size: 2rem;
     font-weight: 800;
-    margin-bottom: 0.5rem;
-    background: linear-gradient(135deg, white 0%, #cbd5e1 100%);
+    background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     letter-spacing: -0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.greeting p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
 }
 
 @media (max-width: 768px) {
     .header {
         flex-direction: column;
         align-items: flex-start;
-        gap: 1.5rem;
+        gap: 1.25rem;
         margin-top: 3rem;
-        /* Space for mobile menu btn */
     }
 
-    .headerActions {
-        width: 100%;
-        justify-content: space-between;
-    }
-
-    .welcomeSection h1 {
-        font-size: 1.75rem;
+    .greeting h1 {
+        font-size: 1.6rem;
     }
 }
 
-.welcomeSection p {
+/* ─── Next Event (Countdown) Card ───────────────────────────────────────── */
+.nextEventCard {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.18) 0%, rgba(139, 92, 246, 0.12) 100%);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 20px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    backdrop-filter: blur(12px);
+    position: relative;
+    overflow: hidden;
+}
+
+.nextEventCard::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 90% 50%, rgba(139, 92, 246, 0.12) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+.nextEventLabel {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #a78bfa;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+}
+
+.nextEventTitle {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 0.35rem;
+}
+
+.nextEventMeta {
+    font-size: 0.85rem;
     color: var(--text-muted);
-    font-size: 1.1rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
-/* Header Actions & Icons */
-.headerActions {
+.countdown {
     display: flex;
+    gap: 0.75rem;
     align-items: center;
-    gap: 1rem;
+    flex-shrink: 0;
 }
 
-.iconBtn {
-    background: rgba(30, 41, 59, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: var(--text-main);
-    width: 46px;
-    height: 46px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    backdrop-filter: blur(8px);
+.cdUnit {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    min-width: 58px;
+    padding: 0.6rem 0.5rem;
+    text-align: center;
 }
 
-.iconBtn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    transform: translateY(-2px);
-    border-color: rgba(255, 255, 255, 0.2);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.iconBtn:active {
-    transform: translateY(0);
-}
-
-.badge {
-    position: absolute;
-    top: -4px;
-    right: -4px;
-    background: var(--danger);
+.cdNum {
+    font-size: 1.6rem;
+    font-weight: 800;
     color: white;
-    font-size: 0.7rem;
-    font-weight: bold;
-    min-width: 20px;
-    height: 20px;
-    padding: 0 4px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid #0f172a;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
 }
 
-.headerAvatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
+.cdLabel {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.cdSep {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.3);
+    padding-bottom: 0.5rem;
+}
+
+.startBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.5rem;
+    border-radius: 12px;
+    border: none;
     background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
     color: white;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    font-weight: 700;
     font-size: 0.9rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.25s;
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
+    text-decoration: none;
 }
 
+.startBtn:hover {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.45);
+}
 
-/* Stats Grid */
-.statsGrid {
+/* ─── Quick Stats (3 Cards) ─────────────────────────────────────────────── */
+.statsRow {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 3rem;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+    margin-bottom: 2rem;
 }
 
-@media (max-width: 480px) {
-    .statsGrid {
+@media (max-width: 640px) {
+    .statsRow {
         grid-template-columns: 1fr;
-        gap: 1rem;
     }
 }
 
 .statCard {
-    background: linear-gradient(145deg, rgba(30, 41, 59, 0.4) 0%, rgba(30, 41, 59, 0.2) 100%);
-    backdrop-filter: blur(12px);
+    background: linear-gradient(145deg, rgba(30, 41, 59, 0.45), rgba(30, 41, 59, 0.2));
     border: 1px solid rgba(255, 255, 255, 0.06);
-    padding: 1.75rem;
-    border-radius: 20px;
+    border-radius: 18px;
+    padding: 1.4rem 1.6rem;
+    backdrop-filter: blur(10px);
     display: flex;
-    flex-direction: column;
     justify-content: space-between;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-}
-
-.statCard::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.05), transparent);
-    opacity: 0;
-    transition: opacity 0.3s;
+    align-items: center;
+    transition: all 0.3s;
 }
 
 .statCard:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.4);
-    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-4px);
+    box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.35);
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
-.statCard:hover::before {
-    opacity: 1;
+
+.statLabel {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin-bottom: 0.3rem;
+    font-weight: 500;
 }
 
-.statHeader {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 1.25rem;
+.statValue {
+    font-size: 2rem;
+    font-weight: 800;
+    color: white;
+    line-height: 1;
+}
+
+.statSub {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 0.35rem;
 }
 
 .statIcon {
-    width: 52px;
-    height: 52px;
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.75rem;
-    position: relative;
-}
-
-/* Quick Actions */
-.quickActions {
-    margin-bottom: 3rem;
-    display: flex;
-    gap: 1.25rem;
-    flex-wrap: wrap;
-}
-
-.actionBtn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-    padding: 1rem 2rem;
+    width: 50px;
+    height: 50px;
     border-radius: 14px;
-    border: none;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    font-size: 1rem;
-    letter-spacing: 0.3px;
-    position: relative;
-    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
-.primaryAction {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-    color: white;
-    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-.primaryAction:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-    filter: brightness(1.05);
-}
-
-.primaryAction:active {
-    transform: translateY(0);
-}
-
-.secondaryAction {
-    background: rgba(30, 41, 59, 0.4);
-    color: var(--text-main);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(4px);
-}
-
-.secondaryAction:hover {
-    background: rgba(30, 41, 59, 0.6);
-    border-color: rgba(255, 255, 255, 0.2);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* Start Exam Button Specifics */
-.startExamBtn {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white;
-    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
-}
-
-.startExamBtn:hover {
-    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
-}
-
-
-/* Main Grid (Chart + Lists) */
-.contentGrid {
-    display: grid;
-    grid-template-columns: 1.8fr 1.2fr;
-    gap: 2.5rem;
-}
-
-@media (max-width: 1024px) {
-    .contentGrid {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* Sections */
+/* ─── Section Headers ────────────────────────────────────────────────────── */
 .sectionHeader {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.25rem;
+    margin-bottom: 1.1rem;
 }
 
 .sectionTitle {
-    font-size: 1.35rem;
+    font-size: 1.15rem;
     font-weight: 700;
-    color: var(--text-main);
+    color: white;
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
 .viewAll {
+    font-size: 0.88rem;
     color: var(--primary);
-    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
-    padding: 6px 12px;
-    border-radius: 8px;
+    padding: 5px 10px;
+    border-radius: 7px;
     transition: background 0.2s;
+    text-decoration: none;
 }
 
 .viewAll:hover {
     background: rgba(99, 102, 241, 0.1);
 }
 
-/* Cards List */
-.cardList {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-}
-
-.listCard {
+/* ─── Active Exams List ──────────────────────────────────────────────────── */
+.examCard {
     background: rgba(30, 41, 59, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 16px;
-    padding: 1.5rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 14px;
+    padding: 1.1rem 1.4rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    position: relative;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
     backdrop-filter: blur(8px);
+    transition: all 0.3s;
 }
 
-.listCard:hover {
+.examCard:hover {
     background: rgba(30, 41, 59, 0.5);
-    border-color: rgba(255, 255, 255, 0.15);
-    transform: translateX(4px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border-color: rgba(255, 255, 255, 0.12);
+    transform: translateX(3px);
 }
 
-.cardInfoTitle {
+.examName {
     font-weight: 700;
-    color: var(--text-main);
-    margin-bottom: 0.4rem;
-    font-size: 1.1rem;
-}
-
-.cardInfoSub {
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    display: flex;
-    gap: 1.25rem;
-    align-items: center;
-}
-
-.cardInfoSub span {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.cardActionBtn {
-    padding: 0.6rem 1.25rem;
-    border-radius: 10px;
-    border: 1px solid var(--primary);
-    color: var(--primary);
-    background: rgba(99, 102, 241, 0.05);
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s;
-}
-
-.cardActionBtn:hover {
-    background: var(--primary);
     color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+    font-size: 0.95rem;
+    margin-bottom: 0.3rem;
 }
 
-/* Chart Container */
-.chartContainer {
-    background: linear-gradient(160deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.4) 100%);
+.examMeta {
+    display: flex;
+    gap: 1rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.examMeta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.statusBadge {
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.statusUpcoming {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.statusLive {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.statusMissed {
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.statusDone {
+    background: rgba(100, 116, 139, 0.12);
+    color: #94a3b8;
+    border: 1px solid rgba(100, 116, 139, 0.2);
+}
+
+.actionBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border-radius: 9px;
+    border: none;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.primaryBtn {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    color: white;
+    box-shadow: 0 3px 10px rgba(99, 102, 241, 0.3);
+}
+
+.primaryBtn:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+}
+
+.ghostBtn {
+    background: rgba(30, 41, 59, 0.6);
+    color: var(--text-muted);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ghostBtn:hover {
+    color: white;
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* ─── Performance Chart ──────────────────────────────────────────────────── */
+.chartSection {
+    background: linear-gradient(160deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.4));
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 20px;
-    padding: 2rem;
-    height: 380px;
-    position: relative;
-    display: flex;
-    flex-direction: column;
+    padding: 1.5rem 2rem;
+    margin-top: 1.5rem;
     backdrop-filter: blur(12px);
 }
 
-/* Chart Tooltip */
+.chartWrap {
+    height: 240px;
+    position: relative;
+    margin-top: 0.75rem;
+}
+
+.chartLabels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* Recharts Custom Tooltip */
 .chartTooltip {
-    position: absolute;
-    background: rgba(15, 23, 42, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: white;
-    padding: 6px 12px;
-    border-radius: 8px;
-    font-size: 0.85rem;
+    background: rgba(10, 14, 26, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    backdrop-filter: blur(16px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     pointer-events: none;
-    transform: translate(-50%, -120%);
-    transition: opacity 0.2s;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    z-index: 10;
+    min-width: 150px;
+}
+
+
+/* ─── Sidebar ────────────────────────────────────────────────────────────── */
+.sidebar {
+    position: sticky;
+    top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.sideCard {
+    background: linear-gradient(145deg, rgba(30, 41, 59, 0.45), rgba(30, 41, 59, 0.2));
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 18px;
+    padding: 1.5rem;
+    backdrop-filter: blur(10px);
+}
+
+.sideCardTitle {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    font-weight: 700;
+    margin-bottom: 1.25rem;
+}
+
+/* GPA Gauge */
+.gaugeWrap {
+    display: flex;
+    justify-content: center;
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.gaugeCenter {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.gaugeValue {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: white;
+    line-height: 1;
+}
+
+.gaugeSubLabel {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 3px;
+}
+
+/* Sidebar Stat Rows */
+.statRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.statRow:last-child {
+    border-bottom: none;
+}
+
+.statRowLabel {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.statRowVal {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: white;
+}
+
+/* ─── Empty / Loading ────────────────────────────────────────────────────── */
+.emptyState {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    border: 1px dashed rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
 }

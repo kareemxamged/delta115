@@ -9,6 +9,8 @@ interface AuthContextType {
     signIn: typeof authService.signIn;
     signUp: typeof authService.signUp;
     signOut: () => Promise<void>;
+    updateLocalUser: (updates: Partial<UserProfile>) => void;
+    refreshProfile: () => Promise<UserProfile | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,48 +32,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         let mounted = true;
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            if (!mounted) return;
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            // FIX DEADLOCK: Push to macrotask queue to release Supabase's internal token lock
+            // during TOKEN_REFRESHED events emitted by mfa.verify().
+            setTimeout(async () => {
+                if (!mounted) return;
 
-            // 1. No Session -> Logged Out
-            if (!session?.user) {
-                setUser(null);
-                setLoading(false);
-                localStorage.removeItem('user_profile');
-                return;
-            }
-
-            // 2. Has Session -> Ensure Profile
-            // Optimization: If we already have the correct user loaded, skip fetch
-            if (user && user.id === session.user.id) {
-                // Determine if we need to background refresh or if cache is good enough
-                // For now, accept it. Use handle to background refresh if needed?
-                // Actually better to verifying fetching fresh data in background if wanted
-                // But for "background check" requirement, avoiding flicker is key.
-                setLoading(false);
-                return;
-            }
-
-            // 3. Fetch Profile (Background Check)
-            try {
-                const profile = await authService.getCurrentProfile();
-                if (mounted && profile) {
-                    setUser(profile);
-                    localStorage.setItem('user_profile', JSON.stringify(profile));
+                // 1. No Session -> Logged Out
+                if (!session?.user) {
+                    setUser(null);
+                    setLoading(false);
+                    localStorage.removeItem('user_profile');
+                    return;
                 }
-            } catch (error) {
-                console.error("Auth: Failed to fetch profile", error);
-                // If we had a cached user, we might want to keep it or clear it?
-                // If fetch failed drastically, valid session might be gone.
-            } finally {
-                if (mounted) setLoading(false);
-            }
+
+                // 2. Check Assurance Level for MFA (2FA)
+                const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+                if (aal && aal.currentLevel === 'aal1' && aal.nextLevel === 'aal2') {
+                    // User has enabled 2FA but hasn't verified TOTP yet!
+                    setUser(null);
+                    setLoading(false);
+                    localStorage.removeItem('user_profile');
+                    return;
+                }
+
+                // 3. Has Session & Verified -> Ensure Profile
+                if (user && user.id === session.user.id) {
+                    setLoading(false);
+                    return;
+                }
+
+                // 4. Fetch Profile (Background Check)
+                try {
+                    const profile = await authService.getCurrentProfile();
+                    if (mounted && profile) {
+                        setUser(profile);
+                        localStorage.setItem('user_profile', JSON.stringify(profile));
+                    }
+                } catch (error) {
+                    console.error("Auth: Failed to fetch profile", error);
+                } finally {
+                    if (mounted) setLoading(false);
+                }
+            }, 10);
         });
 
         return () => {
             mounted = false;
             subscription.unsubscribe();
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Empty dependency array is correct for auth listener
 
     const handleSignOut = async () => {
@@ -80,17 +90,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('user_profile');
     };
 
+    const updateLocalUser = (updates: Partial<UserProfile>) => {
+        setUser(prev => {
+            if (!prev) return prev;
+            const updated = { ...prev, ...updates };
+            localStorage.setItem('user_profile', JSON.stringify(updated));
+            return updated;
+        });
+    };
+
+    const refreshProfile = async () => {
+        try {
+            const profile = await authService.getCurrentProfile();
+            if (profile) {
+                setUser(profile);
+                localStorage.setItem('user_profile', JSON.stringify(profile));
+                return profile;
+            }
+        } catch (error) {
+            console.error('Auth: Failed to force refresh profile', error);
+        }
+        return null;
+    };
+
     const value = {
         user,
         loading,
         signIn: authService.signIn,
         signUp: authService.signUp,
         signOut: handleSignOut,
+        updateLocalUser,
+        refreshProfile,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (context === undefined) {

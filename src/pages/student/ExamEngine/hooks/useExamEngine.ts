@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Exam, Question } from '../types';
+import { Exam } from '../types';
 import { examService } from '../../../../services/examService';
 
 export function useExamEngine(exam: Exam | null, submission: any | null) {
@@ -23,7 +23,8 @@ export function useExamEngine(exam: Exam | null, submission: any | null) {
             if (submission.started_at) {
                 const startTime = new Date(submission.started_at).getTime();
                 const durationMs = exam.durationMinutes * 60 * 1000;
-                const endTime = startTime + durationMs;
+                const hardDeadline = exam.end_time ? new Date(exam.end_time).getTime() : Infinity;
+                const endTime = Math.min(startTime + durationMs, hardDeadline);
                 const now = Date.now();
                 const remainingSeconds = Math.max(0, Math.floor((endTime - now) / 1000));
 
@@ -38,6 +39,27 @@ export function useExamEngine(exam: Exam | null, submission: any | null) {
         }
     }, [exam, submission]);
 
+    // Helper to handle auto-submit avoid closure staleness
+    // We can't easily call `finishExam` from the interval if it depends on `answers` state which changes
+    // BUT `finishExam` depends on `answers`.
+    // Let's use a Ref for answers to ensure we submit the latest.
+    const answersRef = useRef(answers);
+    useEffect(() => {
+        answersRef.current = answers;
+    }, [answers]);
+
+    const handleAutoSubmit = useCallback(async () => {
+        if (!submission?.id || !exam) return;
+        try {
+            // Use current answers from Ref
+            await examService.finishExam(submission.id, answersRef.current, Number(exam.id));
+            setStatus('finished');
+        } catch (error) {
+            console.error("Auto-submit failed", error);
+            setStatus('finished'); // Force finish UI even if DB fail (prevent loop)
+        }
+    }, [submission?.id, exam]);
+
     // Timer Logic (Server-Sync based)
     useEffect(() => {
         if (status === 'finished' || !exam || !submission?.started_at) return;
@@ -45,7 +67,8 @@ export function useExamEngine(exam: Exam | null, submission: any | null) {
         const interval = setInterval(() => {
             const startTime = new Date(submission.started_at).getTime();
             const durationMs = exam.durationMinutes * 60 * 1000;
-            const endTime = startTime + durationMs;
+            const hardDeadline = exam.end_time ? new Date(exam.end_time).getTime() : Infinity;
+            const endTime = Math.min(startTime + durationMs, hardDeadline);
             const now = Date.now();
             const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
 
@@ -66,28 +89,7 @@ export function useExamEngine(exam: Exam | null, submission: any | null) {
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [status, exam, submission]); // Dependencies need care to avoid timer reset, but `exam` and `submission` are stable after load.
-
-    // Helper to handle auto-submit avoid closure staleness
-    // We can't easily call `finishExam` from the interval if it depends on `answers` state which changes
-    // BUT `finishExam` depends on `answers`.
-    // Let's use a Ref for answers to ensure we submit the latest.
-    const answersRef = useRef(answers);
-    useEffect(() => {
-        answersRef.current = answers;
-    }, [answers]);
-
-    const handleAutoSubmit = async () => {
-        if (!submission?.id || !exam) return;
-        try {
-            // Use current answers from Ref
-            await examService.finishExam(submission.id, answersRef.current, Number(exam.id));
-            setStatus('finished');
-        } catch (error) {
-            console.error("Auto-submit failed", error);
-            setStatus('finished'); // Force finish UI even if DB fail (prevent loop)
-        }
-    };
+    }, [status, exam, submission, handleAutoSubmit]); // Dependencies need care to avoid timer reset, but `exam` and `submission` are stable after load.
 
 
     // Prevent Window Close

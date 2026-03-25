@@ -7,6 +7,9 @@ import PasswordStrength from '../components/register/PasswordStrength';
 import RoleCard from '../components/register/RoleCard';
 import styles from './Register.module.css';
 
+const DEPARTMENTS = ['Computer Science', 'Engineering', 'Science', 'Mathematics', 'Arts & Humanities', 'Business'];
+const DEGREES = ['PhD', 'MSc', 'BSc', 'Professor', 'Assistant Professor'];
+
 export default function Register() {
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth(); // Get auth state
@@ -32,6 +35,7 @@ export default function Register() {
         email: '',
         password: '',
         confirmPassword: '',
+        dateOfBirth: '',
         role: '',
         // Student Details
         studentId: '',
@@ -40,7 +44,10 @@ export default function Register() {
         // Teacher Details
         employeeId: '',
         department: '',
-        subjects: ''
+        subjects: '',
+        specialization: '',
+        academicDegree: '',
+        yearsOfExperience: ''
     });
 
     // Load from local storage
@@ -90,7 +97,10 @@ export default function Register() {
 
         try {
             // Prepare Metadata
-            const metadata: any = { role: formData.role.toLowerCase() };
+            const metadata: any = {
+                role: formData.role.toLowerCase(),
+                date_of_birth: formData.dateOfBirth || null,
+            };
 
             if (formData.role === 'student') {
                 metadata.student_id = formData.studentId;
@@ -100,7 +110,9 @@ export default function Register() {
                 metadata.employee_id = formData.employeeId;
                 metadata.department = formData.department;
                 if (formData.role === 'teacher') {
-                    metadata.subjects = formData.subjects;
+                    metadata.specialization = formData.specialization;
+                    metadata.academic_degree = formData.academicDegree;
+                    metadata.years_of_experience = formData.yearsOfExperience ? parseInt(formData.yearsOfExperience) : 0;
                 }
             }
 
@@ -237,6 +249,18 @@ export default function Register() {
                                 </button>
                             </div>
                         </div>
+
+                        {/* Date of Birth — applies to all roles */}
+                        <div className={styles.formGroup}>
+                            <label>Date of Birth <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>(optional)</span></label>
+                            <input
+                                type="date"
+                                value={formData.dateOfBirth}
+                                onChange={e => updateField('dateOfBirth', e.target.value)}
+                                max={new Date().toISOString().split('T')[0]}
+                                className={styles.input}
+                            />
+                        </div>
                     </div>
                 )}
 
@@ -312,8 +336,32 @@ export default function Register() {
                                 </div>
                                 <div className={styles.formGroup}>
                                     <label>Department</label>
-                                    <input type="text" className={styles.input}
-                                        value={formData.department} onChange={e => updateField('department', e.target.value)} />
+                                    <select className={styles.input} value={formData.department} onChange={e => updateField('department', e.target.value)}>
+                                        <option value="">Select Department...</option>
+                                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                                    </select>
+                                </div>
+                            </>
+                        )}
+
+                        {formData.role === 'teacher' && (
+                            <>
+                                <div className={styles.formGroup}>
+                                    <label>Specialization</label>
+                                    <input type="text" className={styles.input} placeholder="e.g. Quantum Mechanics"
+                                        value={formData.specialization} onChange={e => updateField('specialization', e.target.value)} />
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label>Academic Degree</label>
+                                    <select className={styles.input} value={formData.academicDegree} onChange={e => updateField('academicDegree', e.target.value)}>
+                                        <option value="">Select Degree...</option>
+                                        {DEGREES.map(d => <option key={d} value={d}>{d}</option>)}
+                                    </select>
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label>Years of Experience</label>
+                                    <input type="number" min="0" max="50" className={styles.input} placeholder="0"
+                                        value={formData.yearsOfExperience} onChange={e => updateField('yearsOfExperience', e.target.value)} />
                                 </div>
                             </>
                         )}

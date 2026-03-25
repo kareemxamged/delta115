@@ -24,7 +24,7 @@ export const courseService = {
         if (!user) throw new Error("Not authenticated");
 
         // 1. Fetch Enrollments with Course and Exam Data
-        let { data: enrollments, error } = await supabase
+        const response = await supabase
             .from('enrollments')
             .select(`
                 status,
@@ -46,6 +46,9 @@ export const courseService = {
                 )
             `)
             .eq('student_id', user.id);
+
+        let enrollments = response.data;
+        const error = response.error;
 
         if (error) {
             console.error("Error fetching enrollments:", error);
@@ -178,6 +181,21 @@ export const courseService = {
             exams,
             performance
         };
+    },
+
+    async getMaterials(courseId: string) {
+        const { data, error } = await supabase
+            .from('course_materials')
+            .select('*')
+            .eq('course_id', courseId)
+            .order('week', { ascending: true })
+            .order('id', { ascending: true });
+
+        if (error) {
+            console.error("Error fetching materials:", error);
+            return [];
+        }
+        return data || [];
     },
 
     async seedEnrollments(userId: string) {

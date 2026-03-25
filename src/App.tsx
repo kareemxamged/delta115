@@ -17,6 +17,9 @@ import StudentCourseDetails from './pages/student/StudentCourseDetails';
 import StudentProfile from './pages/student/StudentProfile';
 // ...
 import TeacherDashboard from './pages/TeacherDashboard';
+import ExamCreator from './features/exam-creator/ExamCreator';
+import ManageExams from './pages/teacher/ManageExams/ManageExams';
+import TeacherProfile from './pages/teacher/TeacherProfile/TeacherProfile';
 import AdminDashboard from './pages/AdminDashboard';
 import PrivateRoute from './components/PrivateRoute';
 import RootRedirect from './components/RootRedirect';
@@ -60,6 +63,9 @@ function App() {
                 {/* Teacher Routes */}
                 <Route element={<PrivateRoute allowedRoles={['teacher', 'admin']} />}>
                     <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
+                    <Route path="/teacher/create-exam" element={<ExamCreator />} />
+                    <Route path="/teacher/exams" element={<ManageExams />} />
+                    <Route path="/teacher/profile" element={<TeacherProfile />} />
                     <Route path="/teacher/*" element={<Navigate to="/teacher/dashboard" replace />} />
                 </Route>
 

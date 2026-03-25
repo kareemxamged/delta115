@@ -159,42 +159,66 @@ export type Database = {
             }
             profiles: {
                 Row: {
+                    avatar_url: string | null
                     created_at: string | null
+                    date_of_birth: string | null
                     department: string | null
                     email: string | null
                     employee_id: string | null
                     full_name: string | null
+                    headline: string | null
+                    bio: string | null
+                    specialization: string | null
+                    academic_degree: string | null
+                    years_of_experience: number | null
                     id: string
                     level: string | null
                     major: string | null
+                    mobile: string | null
                     role: Database["public"]["Enums"]["app_role"] | null
                     student_id: string | null
                     subjects: string | null
                     updated_at: string | null
                 }
                 Insert: {
+                    avatar_url?: string | null
                     created_at?: string | null
+                    date_of_birth?: string | null
                     department?: string | null
                     email?: string | null
                     employee_id?: string | null
                     full_name?: string | null
+                    headline?: string | null
+                    bio?: string | null
+                    specialization?: string | null
+                    academic_degree?: string | null
+                    years_of_experience?: number | null
                     id: string
                     level?: string | null
                     major?: string | null
+                    mobile?: string | null
                     role?: Database["public"]["Enums"]["app_role"] | null
                     student_id?: string | null
                     subjects?: string | null
                     updated_at?: string | null
                 }
                 Update: {
+                    avatar_url?: string | null
                     created_at?: string | null
+                    date_of_birth?: string | null
                     department?: string | null
                     email?: string | null
                     employee_id?: string | null
                     full_name?: string | null
+                    headline?: string | null
+                    bio?: string | null
+                    specialization?: string | null
+                    academic_degree?: string | null
+                    years_of_experience?: number | null
                     id?: string
                     level?: string | null
                     major?: string | null
+                    mobile?: string | null
                     role?: Database["public"]["Enums"]["app_role"] | null
                     student_id?: string | null
                     subjects?: string | null

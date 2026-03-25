@@ -1,18 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { examService } from '../../services/examService';
 import LoadingSpinner from '../../components/LoadingSpinner';
-
-// Premium Icons
-const Icons = {
-    Search: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="20" height="20"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 001.524 8.243z" /></svg>,
-    Filter: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="20" height="20"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg>,
-    Download: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="20" height="20"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>,
-    Trophy: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="32" height="32"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172V5.25a3 3 0 00-3-3 3 3 0 00-3 3v6.328c0 1.05-.33 2.086-.982 3.172M9.497 14.25a2.25 2.25 0 002.25 2.25h1.5a2.25 2.25 0 002.25-2.25" /></svg>,
-    TrendUp: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="32" height="32"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" /></svg>,
-    Target: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="32" height="32"><path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-9.47 5.227 7.917-3.286-.672zm-7.518-.267A8.25 8.25 0 1120.25 10.5M8.288 14.212A5.25 5.25 0 1117.25 10.5" /></svg>,
-    Clock: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" width="32" height="32"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
-};
+import { Search, Filter, Download as DownloadIcon, Trophy, TrendingUp, Target, Clock, AlertCircle } from 'lucide-react';
+import { ResponsiveContainer, LineChart, Line, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 export default function StudentResults() {
     const navigate = useNavigate();
@@ -20,10 +11,10 @@ export default function StudentResults() {
     const [results, setResults] = useState<any[]>([]);
     const [filteredResults, setFilteredResults] = useState<any[]>([]);
 
-    // Filters
+    // Filters & Sorting
     const [search, setSearch] = useState('');
     const [subjectFilter, setSubjectFilter] = useState('All');
-    const [dateFilter, setDateFilter] = useState('All');
+    const [sortOrder, setSortOrder] = useState('Newest');
 
     useEffect(() => {
         const fetchResults = async () => {
@@ -41,41 +32,84 @@ export default function StudentResults() {
     }, []);
 
     useEffect(() => {
-        let res = results;
+        let res = [...results];
+
+        // 1. Search Filter
         if (search) {
             res = res.filter(r => r.title.toLowerCase().includes(search.toLowerCase()));
         }
+
+        // 2. Subject Filter
         if (subjectFilter !== 'All') {
             res = res.filter(r => r.subject === subjectFilter);
         }
-        setFilteredResults(res);
-    }, [search, subjectFilter, dateFilter, results]);
 
-    // Stats Calculation
+        // 3. Sorting
+        res.sort((a, b) => {
+            if (sortOrder === 'Newest') return new Date(b.date).getTime() - new Date(a.date).getTime();
+            if (sortOrder === 'Oldest') return new Date(a.date).getTime() - new Date(b.date).getTime();
+            if (sortOrder === 'Highest') return b.percentage - a.percentage;
+            if (sortOrder === 'Lowest') return a.percentage - b.percentage;
+            return 0;
+        });
+
+        setFilteredResults(res);
+    }, [search, subjectFilter, sortOrder, results]);
+
+    // Safe Stats Calculation (O(N) safe from stack overflow)
     const totalExams = filteredResults.length;
     const avgScore = totalExams > 0
         ? Math.round(filteredResults.reduce((acc, curr) => acc + curr.percentage, 0) / totalExams)
         : 0;
-    const highestScore = totalExams > 0 ? Math.max(...filteredResults.map(r => r.percentage)) : 0;
-    const lowestScore = totalExams > 0 ? Math.min(...filteredResults.map(r => r.percentage)) : 0;
 
-    const handleDownload = () => alert("Exporting results to PDF...");
+    const highestScore = totalExams > 0
+        ? filteredResults.reduce((max, r) => (r.percentage > max ? r.percentage : max), 0)
+        : 0;
+
+    const lowestScore = totalExams > 0
+        ? filteredResults.reduce((min, r) => (r.percentage < min ? r.percentage : min), 100)
+        : 0;
+
+    const handleDownload = () => {
+        if (filteredResults.length === 0) return;
+
+        const headers = ['Exam Title', 'Subject', 'Date', 'Score (%)', 'Status'];
+        const csvRows = [
+            headers.join(','),
+            ...filteredResults.map(r => [
+                `"${r.title}"`,
+                `"${r.subject || 'General'}"`,
+                new Date(r.date).toLocaleDateString(),
+                r.percentage,
+                r.status
+            ].join(','))
+        ];
+
+        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `my-results-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
 
     if (loading) return <LoadingSpinner fullScreen text="Loading results..." />;
 
     return (
         <div style={{ maxWidth: '1200px', margin: '0 auto', paddingBottom: '2rem' }}>
-
             {/* Header */}
             <div style={{ marginBottom: '2rem' }}>
                 <h1 style={{ fontSize: '2rem', fontWeight: 'bold', color: 'white', marginBottom: '0.5rem' }}>My Results</h1>
                 <p style={{ color: 'var(--text-muted)' }}>Track your progress and analyze your performance.</p>
             </div>
 
-            {/* Filters Bar */}
-            <div className="glass-card" style={{ padding: '0.75rem', marginBottom: '2rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            {/* Filters Bar (Fluid & Wrap) */}
+            <div className="glass-card" style={{ padding: '1rem', marginBottom: '2rem', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 {/* Search */}
-                <div style={{ position: 'relative', width: '550px', marginRight: 'auto' }}>
+                <div style={{ position: 'relative', flex: '1 1 300px' }}>
                     <input
                         type="text"
                         placeholder="Search exams..."
@@ -83,6 +117,7 @@ export default function StudentResults() {
                         onChange={(e) => setSearch(e.target.value)}
                         style={{
                             width: '100%',
+                            boxSizing: 'border-box',
                             padding: '12px 16px',
                             paddingLeft: '44px',
                             background: 'rgba(0,0,0,0.2)',
@@ -96,18 +131,19 @@ export default function StudentResults() {
                         onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
                         onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
                     />
-                    <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex' }}>
-                        <Icons.Search />
+                    <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex', pointerEvents: 'none' }}>
+                        <Search size={20} />
                     </span>
                 </div>
 
                 {/* Filter Select */}
-                <div style={{ position: 'relative', minWidth: '180px' }}>
+                <div style={{ position: 'relative', flex: '1 1 200px' }}>
                     <select
                         value={subjectFilter}
                         onChange={(e) => setSubjectFilter(e.target.value)}
                         style={{
                             width: '100%',
+                            boxSizing: 'border-box',
                             padding: '12px 16px',
                             paddingRight: '40px',
                             background: 'rgba(255,255,255,0.05)',
@@ -126,21 +162,50 @@ export default function StudentResults() {
                         ))}
                     </select>
                     <span style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex', pointerEvents: 'none' }}>
-                        <Icons.Filter />
+                        <Filter size={20} />
                     </span>
+                </div>
+
+                {/* Sort Order Select */}
+                <div style={{ position: 'relative', flex: '1 1 200px' }}>
+                    <select
+                        value={sortOrder}
+                        onChange={(e) => setSortOrder(e.target.value)}
+                        style={{
+                            width: '100%',
+                            boxSizing: 'border-box',
+                            padding: '12px 16px',
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '12px',
+                            color: 'white',
+                            outline: 'none',
+                            cursor: 'pointer',
+                            fontSize: '0.95rem',
+                        }}
+                    >
+                        <option value="Newest" style={{ background: '#1e293b' }}>Sort: Newest First</option>
+                        <option value="Oldest" style={{ background: '#1e293b' }}>Sort: Oldest First</option>
+                        <option value="Highest" style={{ background: '#1e293b' }}>Sort: Highest Score</option>
+                        <option value="Lowest" style={{ background: '#1e293b' }}>Sort: Lowest Score</option>
+                    </select>
                 </div>
 
                 {/* Export Button */}
                 <button
                     onClick={handleDownload}
+                    disabled={filteredResults.length === 0}
                     style={{
                         display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', borderRadius: '12px',
-                        background: 'var(--primary)', border: 'none', color: 'white', cursor: 'pointer',
-                        fontSize: '0.95rem', fontWeight: 'bold',
-                        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                        background: filteredResults.length === 0 ? 'rgba(255,255,255,0.1)' : 'linear-gradient(to right, #8b5cf6, #6366f1)',
+                        border: 'none', color: filteredResults.length === 0 ? 'rgba(255,255,255,0.3)' : 'white',
+                        cursor: filteredResults.length === 0 ? 'not-allowed' : 'pointer',
+                        fontSize: '0.95rem', fontWeight: 'bold', flex: '1 1 auto', justifyContent: 'center',
+                        boxShadow: filteredResults.length > 0 ? '0 4px 14px 0 rgba(139, 92, 246, 0.39)' : 'none',
+                        transition: 'all 0.3s'
                     }}
                 >
-                    <Icons.Download /> <span>Export</span>
+                    <DownloadIcon size={20} /> <span>Export CSV</span>
                 </button>
             </div>
 
@@ -180,97 +245,161 @@ export default function StudentResults() {
             {/* Performance Trend Chart */}
             <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
                 <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ color: 'var(--primary)' }}><Icons.TrendUp /></span> Performance Trend
+                    <span style={{ color: '#8b5cf6' }}><TrendingUp size={24} /></span> Performance Trend
                 </h3>
-                <div style={{ height: '300px', width: '100%', position: 'relative' }}>
+                <div style={{ minHeight: results.length === 0 ? '200px' : '300px', width: '100%', position: 'relative' }}>
                     {results.length > 1 ? (
-                        <SimpleLineChart data={[...results].reverse()} />
+                        <ResponsiveContainer width="100%" height={300}>
+                            <LineChart data={[...results].reverse()} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="colorScore" x1="0" y1="0" x2="1" y2="0">
+                                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={1} />
+                                        <stop offset="95%" stopColor="#6366f1" stopOpacity={1} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                <XAxis
+                                    dataKey="date"
+                                    tickFormatter={(t) => new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                    stroke="rgba(255,255,255,0.2)"
+                                    tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
+                                    dy={10}
+                                />
+                                <YAxis
+                                    domain={[0, 100]}
+                                    stroke="rgba(255,255,255,0.2)"
+                                    tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
+                                />
+                                <Tooltip
+                                    contentStyle={{ borderRadius: '12px', background: 'rgba(15, 23, 42, 0.9)', border: '1px solid rgba(255,255,255,0.1)' }}
+                                    itemStyle={{ color: '#10b981', fontWeight: 'bold' }}
+                                    labelFormatter={(label) => new Date(label).toLocaleDateString()}
+                                    formatter={(value: any) => [`${value}%`, 'Score']}
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey="percentage"
+                                    stroke="url(#colorScore)"
+                                    strokeWidth={4}
+                                    dot={{ fill: 'var(--bg-card)', stroke: '#8b5cf6', strokeWidth: 2, r: 5 }}
+                                    activeDot={{ r: 7, fill: '#6366f1', stroke: 'white' }}
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    ) : results.length === 1 ? (
+                        <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', flexDirection: 'column', gap: '1rem', position: 'relative', overflow: 'hidden' }}>
+                            {/* Subtle placeholder curve */}
+                            <svg viewBox="0 0 1000 300" style={{ position: 'absolute', width: '100%', height: '100%', opacity: 0.1, pointerEvents: 'none' }}>
+                                <path d="M 0 300 Q 250 150 500 200 T 1000 50" fill="none" stroke="url(#placeholderGradient)" strokeWidth="4" />
+                                <defs>
+                                    <linearGradient id="placeholderGradient" x1="0" y1="0" x2="1" y2="0">
+                                        <stop offset="0%" stopColor="#8b5cf6" />
+                                        <stop offset="100%" stopColor="#6366f1" />
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                            <div style={{ zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', background: 'rgba(15, 23, 42, 0.6)', padding: '1.5rem 2.5rem', borderRadius: '16px', backdropFilter: 'blur(8px)', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
+                                <TrendingUp size={36} color="#8b5cf6" />
+                                <h4 style={{ color: 'white', fontSize: '1.2rem', margin: 0 }}>Baseline Established</h4>
+                                <p style={{ margin: 0, fontSize: '0.9rem', maxWidth: '300px', textAlign: 'center' }}>
+                                    You scored <strong>{results[0].percentage}%</strong> on your first exam. Take more exams to unlock live trend tracking!
+                                </p>
+                            </div>
+                        </div>
                     ) : (
-                        <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', flexDirection: 'column', gap: '1rem' }}>
-                            <div style={{ opacity: 0.3 }}><Icons.TrendUp /></div>
-                            Take more exams to see your trend!
+                        <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', flexDirection: 'column', gap: '1rem' }}>
+                            <div style={{ opacity: 0.3 }}><TrendingUp size={48} /></div>
+                            Insufficient data. Take your first exam to view statistics.
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Detailed Results List */}
-            {/* Same list code... simplified for brevity if needed but keeping logic */}
-            {/* ... (Keeping existing list logic but improving padding/spacing via CSS classes if they existed, or inline) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {filteredResults.map((result) => (
-                    <div key={result.id} className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        {/* ... item content ... */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-                            <div>
-                                <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '0.25rem' }}>{result.title}</h3>
-                                <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                                    {new Date(result.date).toLocaleDateString()} • {result.subject || 'General'}
-                                </div>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <div style={{
-                                    fontSize: '1.5rem',
-                                    fontWeight: 'bold',
-                                    color: result.percentage >= 80 ? '#10b981' : result.percentage >= 50 ? '#f59e0b' : '#ef4444'
-                                }}>
-                                    {result.percentage}%
-                                </div>
-                                <div style={{
-                                    fontSize: '0.8rem',
-                                    padding: '2px 8px',
-                                    borderRadius: '10px',
-                                    background: result.status === 'Passed' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                                    color: result.status === 'Passed' ? '#10b981' : '#ef4444',
-                                    display: 'inline-block',
-                                    marginTop: '4px'
-                                }}>
-                                    {result.status}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Progress Bar */}
-                        <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
-                            <div style={{
-                                width: `${result.percentage}%`,
-                                height: '100%',
-                                background: result.percentage >= 80 ? '#10b981' : result.percentage >= 50 ? '#f59e0b' : '#ef4444',
-                                borderRadius: '4px',
-                                transition: 'width 1s ease-out'
-                            }} />
-                        </div>
-
-                        {/* Actions */}
-                        <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
-                            <button
-                                onClick={() => navigate(`/student/exam/${result.examId}`)}
-                                style={{
-                                    background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer',
-                                    fontSize: '0.9rem', fontWeight: '500'
-                                }}
-                            >
-                                View Details
-                            </button>
-                            <button
-                                onClick={() => navigate(`/student/exam/${result.examId}/review`)}
-                                className="btn-primary"
-                                style={{ padding: '8px 20px', fontSize: '0.9rem' }}
-                            >
-                                Review Answers
-                            </button>
-                        </div>
+            {/* Detailed Results List or Empty State */}
+            {filteredResults.length === 0 ? (
+                <div className="glass-card" style={{ padding: '4rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+                    <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem', color: 'var(--text-muted)' }}>
+                        <AlertCircle size={40} />
                     </div>
-                ))}
-            </div>
+                    <h3 style={{ fontSize: '1.5rem', color: 'white', marginBottom: '0.5rem' }}>No Results Found</h3>
+                    <p style={{ color: 'var(--text-muted)', maxWidth: '400px' }}>
+                        We couldn't find any exams matching your current search or filter criteria. Try adjusting your filters to see more results.
+                    </p>
+                </div>
+            ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {filteredResults.map((result) => (
+                        <div key={result.id} className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                                <div>
+                                    <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '0.25rem' }}>{result.title}</h3>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                                        {new Date(result.date).toLocaleDateString()} • {result.subject || 'General'}
+                                    </div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                    <div style={{
+                                        fontSize: '1.5rem',
+                                        fontWeight: 'bold',
+                                        color: result.percentage >= 80 ? '#10b981' : result.percentage >= 50 ? '#f59e0b' : '#ef4444'
+                                    }}>
+                                        {result.percentage}%
+                                    </div>
+                                    <div style={{
+                                        fontSize: '0.8rem',
+                                        padding: '2px 8px',
+                                        borderRadius: '10px',
+                                        background: result.status === 'Passed' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                        color: result.status === 'Passed' ? '#10b981' : '#ef4444',
+                                        display: 'inline-block',
+                                        marginTop: '4px'
+                                    }}>
+                                        {result.status}
+                                    </div>
+                                </div>
+                            </div>
 
+                            {/* Progress Bar */}
+                            <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{
+                                    width: `${result.percentage}%`,
+                                    height: '100%',
+                                    background: result.percentage >= 80 ? '#10b981' : result.percentage >= 50 ? '#f59e0b' : '#ef4444',
+                                    borderRadius: '4px',
+                                    transition: 'width 1s ease-out'
+                                }} />
+                            </div>
+
+                            {/* Actions */}
+                            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                                <button
+                                    onClick={() => navigate(`/student/exams/${result.examId}`)}
+                                    style={{
+                                        background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer',
+                                        fontSize: '0.9rem', fontWeight: '500'
+                                    }}
+                                >
+                                    View Details
+                                </button>
+                                <button
+                                    onClick={() => navigate(`/student/exams/${result.examId}/review`)}
+                                    className="btn-primary"
+                                    style={{ padding: '8px 20px', fontSize: '0.9rem' }}
+                                >
+                                    Review Answers
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Bottom Stats Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginTop: '2rem' }}>
-                <StatCard icon={<Icons.Trophy />} title="Top Result" value={`${highestScore}%`} subtext="Best performance yet" color="#fbbf24" />
-                <StatCard icon={<Icons.TrendUp />} title="Progress" value="+12%" subtext="vs last month" color="#3b82f6" />
-                <StatCard icon={<Icons.Target />} title="Accuracy" value="88%" subtext="Correct answers" color="#10b981" />
-                <StatCard icon={<Icons.Clock />} title="Avg Speed" value="35m" subtext="Per exam" color="#8b5cf6" />
+                <StatCard icon={<Trophy size={32} />} title="Top Result" value={`${highestScore}%`} subtext="Best performance yet" color="#fbbf24" />
+                <StatCard icon={<TrendingUp size={32} />} title="Progress" value="+12%" subtext="vs last month" color="#3b82f6" />
+                <StatCard icon={<Target size={32} />} title="Accuracy" value="88%" subtext="Correct answers" color="#10b981" />
+                <StatCard icon={<Clock size={32} />} title="Avg Speed" value="35m" subtext="Per exam" color="#8b5cf6" />
             </div>
         </div>
     );
@@ -294,87 +423,5 @@ function StatCard({ icon, title, value, subtext, color }: any) {
             <div style={{ fontSize: '1.75rem', fontWeight: 'bold', color: 'white' }}>{value}</div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>{subtext}</div>
         </div>
-    );
-}
-
-// Simple Custom SVG Line Chart
-function SimpleLineChart({ data }: { data: any[] }) {
-    // Normalize data for SVG
-    const width = 1000;
-    const height = 300;
-    const padding = 40;
-
-    // Y Axis: 0 to 100
-    const maxY = 100;
-
-    const getX = (index: number) => {
-        const space = (width - padding * 2) / (data.length - 1);
-        return padding + index * space;
-    };
-
-    const getY = (percentage: number) => {
-        const availableHeight = height - padding * 2;
-        return height - padding - (percentage / maxY) * availableHeight;
-    };
-
-    const points = data.map((d, i) => `${getX(i)},${getY(d.percentage)}`).join(' ');
-
-    return (
-        <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: '100%', overflow: 'visible' }}>
-            {/* Grid Lines */}
-            {[0, 25, 50, 75, 100].map(p => (
-                <g key={p}>
-                    <line
-                        x1={padding} y1={getY(p)}
-                        x2={width - padding} y2={getY(p)}
-                        stroke="rgba(255,255,255,0.1)" strokeWidth="1"
-                    />
-                    <text x={padding - 10} y={getY(p) + 5} fill="rgba(255,255,255,0.5)" fontSize="12" textAnchor="end">{p}%</text>
-                </g>
-            ))}
-
-            {/* Line */}
-            <polyline
-                points={points}
-                fill="none"
-                stroke="var(--primary)"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-            />
-
-            {/* Gradient Area under line (Optional simple fill) */}
-            <polygon
-                points={`${padding},${height - padding} ${points} ${width - padding},${height - padding}`}
-                fill="var(--primary)"
-                fillOpacity="0.1"
-            />
-
-            {/* Data Points */}
-            {data.map((d, i) => (
-                <g key={i}>
-                    <circle cx={getX(i)} cy={getY(d.percentage)} r="6" fill="var(--bg-card)" stroke="var(--primary)" strokeWidth="2" />
-                    <text
-                        x={getX(i)}
-                        y={getY(d.percentage) - 15}
-                        fill="white"
-                        fontSize="12"
-                        textAnchor="middle"
-                        opacity="0.8"
-                    >
-                        {d.percentage}%
-                    </text>
-                    <text
-                        x={getX(i)}
-                        y={height - 20}
-                        fill="rgba(255,255,255,0.5)"
-                        fontSize="12"
-                        textAnchor="middle"
-                    >
-                        {new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                    </text>
-                </g>
-            ))}
-        </svg>
     );
 }

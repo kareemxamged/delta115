@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { examService, Exam } from '../../services/examService';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';

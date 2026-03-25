@@ -34,6 +34,7 @@ export type Question = MCQQuestion | TrueFalseQuestion | EssayQuestion | CodeQue
 export interface Exam {
     id: string;
     title: string;
+    end_time?: string;
     durationMinutes: number;
     totalQuestions: number;
     questions: Question[];
